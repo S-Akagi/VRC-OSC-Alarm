@@ -10,6 +10,11 @@ use std::net::SocketAddr;
 pub struct AppState {
     pub last_osc_received: Option<DateTime<Local>>,
     pub last_osc_sent: Option<DateTime<Local>>,
+    pub alarm_set_hour: f32,
+    pub alarm_set_minute: f32,
+    pub alarm_is_on: bool,
+    pub snooze_pressed: bool,
+    pub stop_pressed: bool,
 }
 
 // デフォルト状態
@@ -18,6 +23,11 @@ impl Default for AppState {
         Self {
             last_osc_received: None,
             last_osc_sent: None,
+            alarm_set_hour: 0.0,
+            alarm_set_minute: 0.0,
+            alarm_is_on: false,
+            snooze_pressed: false,
+            stop_pressed: false,
         }
     }
 }
@@ -84,11 +94,46 @@ impl OscServer {
         let mut state = self.state.lock().unwrap();
         state.last_osc_received = Some(Local::now());
         
-        // println!("Received OSC message: {} with {} args", msg.addr, msg.args.len());
+        println!("Received OSC message: {} with {} args", msg.addr, msg.args.len());
         
-        // メッセージの詳細をログに出力
-        for (i, arg) in msg.args.iter().enumerate() {
-            println!("  Arg {}: {:?}", i, arg);
+        // VRChatアラームパラメータの処理
+        match msg.addr.as_str() {
+            "/avatar/parameters/AlarmSetHour" => {
+                if let Some(OscType::Float(hour)) = msg.args.first() {
+                    state.alarm_set_hour = *hour;
+                    println!("  AlarmSetHour updated to: {}", hour);
+                }
+            }
+            "/avatar/parameters/AlarmSetMinute" => {
+                if let Some(OscType::Float(minute)) = msg.args.first() {
+                    state.alarm_set_minute = *minute;
+                    println!("  AlarmSetMinute updated to: {}", minute);
+                }
+            }
+            "/avatar/parameters/AlarmIsOn" => {
+                if let Some(OscType::Bool(is_on)) = msg.args.first() {
+                    state.alarm_is_on = *is_on;
+                    println!("  AlarmIsOn updated to: {}", is_on);
+                }
+            }
+            "/avatar/parameters/SnoozePressed" => {
+                if let Some(OscType::Bool(pressed)) = msg.args.first() {
+                    state.snooze_pressed = *pressed;
+                    println!("  SnoozePressed updated to: {}", pressed);
+                }
+            }
+            "/avatar/parameters/StopPressed" => {
+                if let Some(OscType::Bool(pressed)) = msg.args.first() {
+                    state.stop_pressed = *pressed;
+                    println!("  StopPressed updated to: {}", pressed);
+                }
+            }
+            _ => {
+                // その他のメッセージの詳細をログに出力
+                for (i, arg) in msg.args.iter().enumerate() {
+                    println!("  Arg {}: {:?}", i, arg);
+                }
+            }
         }
     }
 
