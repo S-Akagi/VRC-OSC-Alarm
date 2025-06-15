@@ -4,6 +4,9 @@ use rosc::{OscMessage, OscPacket, OscType};
 use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Local};
 use std::net::SocketAddr;
+use tokio::time::{sleep, Duration};
+use std::fs;
+use std::path::PathBuf;
 
 // OSC受信・送信状態
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -33,6 +36,88 @@ impl Default for AppState {
 }
 
 pub type AppStateMutex = Arc<Mutex<AppState>>;
+
+// 設定データ構造（時間単位で保存）
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AlarmSettings {
+    pub alarm_hour: i32,    // 0-23
+    pub alarm_minute: i32,  // 0-59
+    pub alarm_is_on: bool,
+}
+
+impl Default for AlarmSettings {
+    fn default() -> Self {
+        Self {
+            alarm_hour: 7,
+            alarm_minute: 0,
+            alarm_is_on: false,
+        }
+    }
+}
+
+// 時間をVRC用のfloat値に変換（直感的な0.01=1時間形式）
+fn hour_to_vrc_float(hour: i32) -> f32 {
+    let clamped_hour = hour.clamp(0, 23);
+    (clamped_hour as f32) / 100.0  // 0.01 = 1時間
+}
+
+fn minute_to_vrc_float(minute: i32) -> f32 {
+    let clamped_minute = minute.clamp(0, 59);
+    (clamped_minute as f32) / 100.0  // 0.01 = 1分
+}
+
+// VRC用のfloat値を時間に変換
+fn vrc_float_to_hour(value: f32) -> i32 {
+    let hour = (value * 100.0).round() as i32;
+    hour.clamp(0, 23)  // 範囲外なら丸め込み
+}
+
+fn vrc_float_to_minute(value: f32) -> i32 {
+    let minute = (value * 100.0).round() as i32;
+    minute.clamp(0, 59)  // 範囲外なら丸め込み
+}
+
+// 設定ファイル管理
+fn get_config_path() -> PathBuf {
+    let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
+    path.push("vrc-osc-alarm");
+    path.push("settings.json");
+    path
+}
+
+fn load_settings() -> AlarmSettings {
+    let config_path = get_config_path();
+    
+    if config_path.exists() {
+        if let Ok(content) = fs::read_to_string(&config_path) {
+            if let Ok(settings) = serde_json::from_str::<AlarmSettings>(&content) {
+                println!("Loaded settings from: {:?}", config_path);
+                return settings;
+            }
+        }
+    }
+    
+    println!("Using default settings");
+    AlarmSettings::default()
+}
+
+fn save_settings(settings: &AlarmSettings) -> Result<(), String> {
+    let config_path = get_config_path();
+    
+    // ディレクトリを作成
+    if let Some(parent) = config_path.parent() {
+        fs::create_dir_all(parent).map_err(|e| format!("Failed to create config directory: {}", e))?;
+    }
+    
+    let content = serde_json::to_string_pretty(settings)
+        .map_err(|e| format!("Failed to serialize settings: {}", e))?;
+    
+    fs::write(&config_path, content)
+        .map_err(|e| format!("Failed to write settings file: {}", e))?;
+    
+    println!("Saved settings to: {:?}", config_path);
+    Ok(())
+}
 
 // OSCサーバーとクライアントの設定
 struct OscServer {
@@ -99,15 +184,17 @@ impl OscServer {
         // VRChatアラームパラメータの処理
         match msg.addr.as_str() {
             "/avatar/parameters/AlarmSetHour" => {
-                if let Some(OscType::Float(hour)) = msg.args.first() {
-                    state.alarm_set_hour = *hour;
-                    println!("  AlarmSetHour updated to: {}", hour);
+                if let Some(OscType::Float(hour_float)) = msg.args.first() {
+                    let hour = vrc_float_to_hour(*hour_float);
+                    state.alarm_set_hour = *hour_float;
+                    println!("  AlarmSetHour updated: {} ({}h)", hour_float, hour);
                 }
             }
             "/avatar/parameters/AlarmSetMinute" => {
-                if let Some(OscType::Float(minute)) = msg.args.first() {
-                    state.alarm_set_minute = *minute;
-                    println!("  AlarmSetMinute updated to: {}", minute);
+                if let Some(OscType::Float(minute_float)) = msg.args.first() {
+                    let minute = vrc_float_to_minute(*minute_float);
+                    state.alarm_set_minute = *minute_float;
+                    println!("  AlarmSetMinute updated: {} ({}m)", minute_float, minute);
                 }
             }
             "/avatar/parameters/AlarmIsOn" => {
@@ -248,35 +335,23 @@ async fn send_alarm_should_fire(
 
 #[tauri::command]
 async fn send_alarm_set_hour(
-    hour: f32,
+    hour: i32,
     state: tauri::State<'_, AppStateMutex>,
 ) -> Result<(), String> {
-    let mut args = vec![];
-    // 0.0から0.23の範囲に収める
-    if hour < 0.0 {
-        args.push(OscType::Float(0.0));
-    } else if hour > 0.23 {
-        args.push(OscType::Float(0.23));
-    } else {
-        args.push(OscType::Float(hour));
-    }
+    let hour = hour.clamp(0, 23);
+    let vrc_value = hour_to_vrc_float(hour);
+    let args = vec![OscType::Float(vrc_value)];
     send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", args, &state).await
 }
 
 #[tauri::command]
 async fn send_alarm_set_minute(
-    minute: f32,
+    minute: i32,
     state: tauri::State<'_, AppStateMutex>,
 ) -> Result<(), String> {
-    let mut args = vec![];
-    // 0.0から0.59の範囲に収める
-    if minute < 0.0 {
-        args.push(OscType::Float(0.0));
-    } else if minute > 0.59 {
-        args.push(OscType::Float(0.59));
-    } else {
-        args.push(OscType::Float(minute));
-    }
+    let minute = minute.clamp(0, 59);
+    let vrc_value = minute_to_vrc_float(minute);
+    let args = vec![OscType::Float(vrc_value)];
     send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", args, &state).await
 }
 
@@ -307,6 +382,57 @@ async fn send_stop_pressed(
     send_osc_to_vrchat("/avatar/parameters/StopPressed", args, &state).await
 }
 
+
+#[tauri::command]
+async fn load_and_send_settings(state: tauri::State<'_, AppStateMutex>) -> Result<AlarmSettings, String> {
+    let settings = load_settings();
+    
+    // 設定値をVRChatに送信（時間を0.00-1.00範囲に変換）
+    let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
+    let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
+    
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", vec![OscType::Float(hour_vrc)], &state).await?;
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", vec![OscType::Float(minute_vrc)], &state).await?;
+    send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", vec![OscType::Bool(settings.alarm_is_on)], &state).await?;
+    
+    println!("Sent saved settings to VRChat: {}:{} (VRC: {:.3}, {:.3})", 
+             settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc);
+    Ok(settings)
+}
+
+#[tauri::command]
+async fn save_alarm_settings(
+    alarm_hour: i32,
+    alarm_minute: i32,
+    alarm_is_on: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let settings = AlarmSettings {
+        alarm_hour: alarm_hour.clamp(0, 23),
+        alarm_minute: alarm_minute.clamp(0, 59),
+        alarm_is_on,
+    };
+    
+    save_settings(&settings)?;
+    
+    // 設定保存と同時にVRChatに送信（時間を0.00-1.00範囲に変換）
+    let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
+    let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
+    
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", vec![OscType::Float(hour_vrc)], &state).await?;
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", vec![OscType::Float(minute_vrc)], &state).await?;
+    send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", vec![OscType::Bool(settings.alarm_is_on)], &state).await?;
+    
+    println!("Saved and sent settings to VRChat: {}:{} (VRC: {:.3}, {:.3})", 
+             settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc);
+    Ok(())
+}
+
+#[tauri::command]
+fn get_alarm_settings() -> Result<AlarmSettings, String> {
+    Ok(load_settings())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let initial_state = Arc::new(Mutex::new(AppState::default()));
@@ -318,8 +444,11 @@ pub fn run() {
             let state = initial_state.clone();
             
             let handle = app.handle().clone();
+            
+            // OSCサーバーの起動
+            let server_state = state.clone();
             tauri::async_runtime::spawn(async move {
-                let osc_server = match OscServer::new(state).await {
+                let osc_server = match OscServer::new(server_state).await {
                     Ok(server) => server,
                     Err(e) => {
                         eprintln!("Failed to create OSC server: {}", e);
@@ -332,6 +461,30 @@ pub fn run() {
                 }
             });
             
+            // 起動時の設定読み込みと送信
+            let startup_state = state.clone();
+            tauri::async_runtime::spawn(async move {
+                // 少し待機してからOSCサーバー起動後に設定を送信
+                sleep(Duration::from_secs(2)).await;
+                
+                let settings = load_settings();
+                let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
+                let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
+                
+                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", vec![OscType::Float(hour_vrc)], &startup_state).await {
+                    eprintln!("Failed to send AlarmSetHour on startup: {}", e);
+                }
+                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", vec![OscType::Float(minute_vrc)], &startup_state).await {
+                    eprintln!("Failed to send AlarmSetMinute on startup: {}", e);
+                }
+                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", vec![OscType::Bool(settings.alarm_is_on)], &startup_state).await {
+                    eprintln!("Failed to send AlarmIsOn on startup: {}", e);
+                }
+                
+                println!("Sent saved settings to VRChat on startup: {}:{} (VRC: {:.3}, {:.3})", 
+                         settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc);
+            });
+            
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
@@ -342,7 +495,10 @@ pub fn run() {
             send_alarm_set_minute, 
             send_alarm_is_on, 
             send_snooze_pressed, 
-            send_stop_pressed
+            send_stop_pressed,
+            load_and_send_settings,
+            save_alarm_settings,
+            get_alarm_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
