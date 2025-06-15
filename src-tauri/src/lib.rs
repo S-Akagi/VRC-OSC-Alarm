@@ -206,6 +206,43 @@ fn get_current_state(state: tauri::State<AppStateMutex>) -> Result<AppState, Str
     }
 }
 
+#[tauri::command]
+async fn send_alarm_should_fire(
+    should_fire: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let target_ip = "127.0.0.1";
+    let target_port = 9000; // VRChatのデフォルトポート
+    
+    let target: SocketAddr = format!("{}:{}", target_ip, target_port)
+        .parse()
+        .map_err(|e| format!("Invalid target address: {}", e))?;
+    
+    let args = vec![OscType::Bool(should_fire)];
+    
+    let client_socket = UdpSocket::bind("0.0.0.0:0").await
+        .map_err(|e| format!("Failed to bind client socket: {}", e))?;
+    
+    let msg = OscMessage {
+        addr: "/avatar/parameters/AlarmShouldFire".to_string(),
+        args,
+    };
+    
+    let packet = OscPacket::Message(msg);
+    let msg_buf = rosc::encoder::encode(&packet)
+        .map_err(|e| format!("Failed to encode OSC message: {}", e))?;
+    
+    client_socket.send_to(&msg_buf, target).await
+        .map_err(|e| format!("Failed to send OSC message: {}", e))?;
+    
+    let mut app_state = state.lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
+    app_state.last_osc_sent = Some(Local::now());
+    
+    println!("Sent AlarmShouldFire: {} to VRChat at {}", should_fire, target);
+    Ok(())
+}
+
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
     let initial_state = Arc::new(Mutex::new(AppState::default()));
@@ -233,7 +270,7 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_current_state, send_osc])
+        .invoke_handler(tauri::generate_handler![get_current_state, send_osc, send_alarm_should_fire])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
