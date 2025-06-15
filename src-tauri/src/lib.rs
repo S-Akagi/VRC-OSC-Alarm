@@ -206,11 +206,7 @@ fn get_current_state(state: tauri::State<AppStateMutex>) -> Result<AppState, Str
     }
 }
 
-#[tauri::command]
-async fn send_alarm_should_fire(
-    should_fire: bool,
-    state: tauri::State<'_, AppStateMutex>,
-) -> Result<(), String> {
+async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppStateMutex) -> Result<(), String> {
     let target_ip = "127.0.0.1";
     let target_port = 9000; // VRChatのデフォルトポート
     
@@ -218,13 +214,11 @@ async fn send_alarm_should_fire(
         .parse()
         .map_err(|e| format!("Invalid target address: {}", e))?;
     
-    let args = vec![OscType::Bool(should_fire)];
-    
     let client_socket = UdpSocket::bind("0.0.0.0:0").await
         .map_err(|e| format!("Failed to bind client socket: {}", e))?;
     
     let msg = OscMessage {
-        addr: "/avatar/parameters/AlarmShouldFire".to_string(),
+        addr: address.to_string(),
         args,
     };
     
@@ -239,8 +233,78 @@ async fn send_alarm_should_fire(
         .map_err(|e| format!("Failed to lock state: {}", e))?;
     app_state.last_osc_sent = Some(Local::now());
     
-    println!("Sent AlarmShouldFire: {} to VRChat at {}", should_fire, target);
+    println!("Sent OSC to VRChat: {} at {}", address, target);
     Ok(())
+}
+
+#[tauri::command]
+async fn send_alarm_should_fire(
+    should_fire: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let args = vec![OscType::Bool(should_fire)];
+    send_osc_to_vrchat("/avatar/parameters/AlarmShouldFire", args, &state).await
+}
+
+#[tauri::command]
+async fn send_alarm_set_hour(
+    hour: f32,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let mut args = vec![];
+    // 0.0から0.23の範囲に収める
+    if hour < 0.0 {
+        args.push(OscType::Float(0.0));
+    } else if hour > 0.23 {
+        args.push(OscType::Float(0.23));
+    } else {
+        args.push(OscType::Float(hour));
+    }
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", args, &state).await
+}
+
+#[tauri::command]
+async fn send_alarm_set_minute(
+    minute: f32,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let mut args = vec![];
+    // 0.0から0.59の範囲に収める
+    if minute < 0.0 {
+        args.push(OscType::Float(0.0));
+    } else if minute > 0.59 {
+        args.push(OscType::Float(0.59));
+    } else {
+        args.push(OscType::Float(minute));
+    }
+    send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", args, &state).await
+}
+
+#[tauri::command]
+async fn send_alarm_is_on(
+    is_on: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let args = vec![OscType::Bool(is_on)];
+    send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", args, &state).await
+}
+
+#[tauri::command]
+async fn send_snooze_pressed(
+    pressed: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let args = vec![OscType::Bool(pressed)];
+    send_osc_to_vrchat("/avatar/parameters/SnoozePressed", args, &state).await
+}
+
+#[tauri::command]
+async fn send_stop_pressed(
+    pressed: bool,
+    state: tauri::State<'_, AppStateMutex>,
+) -> Result<(), String> {
+    let args = vec![OscType::Bool(pressed)];
+    send_osc_to_vrchat("/avatar/parameters/StopPressed", args, &state).await
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -270,7 +334,16 @@ pub fn run() {
             
             Ok(())
         })
-        .invoke_handler(tauri::generate_handler![get_current_state, send_osc, send_alarm_should_fire])
+        .invoke_handler(tauri::generate_handler![
+            get_current_state, 
+            send_osc, 
+            send_alarm_should_fire, 
+            send_alarm_set_hour, 
+            send_alarm_set_minute, 
+            send_alarm_is_on, 
+            send_snooze_pressed, 
+            send_stop_pressed
+        ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
 }
