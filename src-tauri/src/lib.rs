@@ -2,14 +2,15 @@ use std::sync::{Arc, Mutex};
 use tokio::net::UdpSocket;
 use rosc::{OscMessage, OscPacket, OscType};
 use serde::{Deserialize, Serialize};
-use chrono::{DateTime, Local};
+use chrono::{DateTime, Local, Timelike};
 use std::net::SocketAddr;
 use tokio::time::{sleep, Duration};
 use std::fs;
 use std::path::PathBuf;
+use tokio::task::JoinHandle;
 
 // OSC受信・送信状態
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct AppState {
     pub last_osc_received: Option<DateTime<Local>>,
     pub last_osc_sent: Option<DateTime<Local>>,
@@ -18,6 +19,32 @@ pub struct AppState {
     pub alarm_is_on: bool,
     pub snooze_pressed: bool,
     pub stop_pressed: bool,
+    pub is_ringing: bool,
+    pub snooze_count: u32,
+    pub max_snoozes: u32,
+    #[serde(skip)]
+    pub active_timer_handle: Option<JoinHandle<()>>,
+    #[serde(skip)]
+    pub ringing_timer_handle: Option<JoinHandle<()>>,
+}
+
+impl Clone for AppState {
+    fn clone(&self) -> Self {
+        Self {
+            last_osc_received: self.last_osc_received,
+            last_osc_sent: self.last_osc_sent,
+            alarm_set_hour: self.alarm_set_hour,
+            alarm_set_minute: self.alarm_set_minute,
+            alarm_is_on: self.alarm_is_on,
+            snooze_pressed: self.snooze_pressed,
+            stop_pressed: self.stop_pressed,
+            is_ringing: self.is_ringing,
+            snooze_count: self.snooze_count,
+            max_snoozes: self.max_snoozes,
+            active_timer_handle: None, // JoinHandleはCloneできないのでNoneにする
+            ringing_timer_handle: None,
+        }
+    }
 }
 
 
@@ -33,6 +60,11 @@ impl Default for AppState {
             alarm_is_on: false,
             snooze_pressed: false,
             stop_pressed: false,
+            is_ringing: false,
+            snooze_count: 0,
+            max_snoozes: 5, // デフォルトは5回
+            active_timer_handle: None,
+            ringing_timer_handle: None,
         }
     }
 }
@@ -190,6 +222,14 @@ impl OscServer {
                     let hour = vrc_float_to_hour(*hour_float);
                     state.alarm_set_hour = *hour_float;
                     println!("  AlarmSetHour updated: {} ({}h)", hour_float, hour);
+                    
+                    // タイマー再計算
+                    drop(state);
+                    let state_clone = self.state.clone();
+                    tokio::spawn(async move {
+                        recalculate_and_set_timer(&state_clone).await;
+                    });
+                    return;
                 }
             }
             "/avatar/parameters/AlarmSetMinute" => {
@@ -197,24 +237,66 @@ impl OscServer {
                     let minute = vrc_float_to_minute(*minute_float);
                     state.alarm_set_minute = *minute_float;
                     println!("  AlarmSetMinute updated: {} ({}m)", minute_float, minute);
+                    
+                    // タイマー再計算
+                    drop(state);
+                    let state_clone = self.state.clone();
+                    tokio::spawn(async move {
+                        recalculate_and_set_timer(&state_clone).await;
+                    });
+                    return;
                 }
             }
             "/avatar/parameters/AlarmIsOn" => {
                 if let Some(OscType::Bool(is_on)) = msg.args.first() {
                     state.alarm_is_on = *is_on;
                     println!("  AlarmIsOn updated to: {}", is_on);
+                    
+                    // タイマー再計算
+                    drop(state);
+                    let state_clone = self.state.clone();
+                    tokio::spawn(async move {
+                        recalculate_and_set_timer(&state_clone).await;
+                    });
+                    return;
                 }
             }
             "/avatar/parameters/SnoozePressed" => {
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
-                    state.snooze_pressed = *pressed;
-                    println!("  SnoozePressed updated to: {}", pressed);
+                    if *pressed && state.is_ringing {
+                        state.snooze_pressed = *pressed;
+                        println!("  Snooze button pressed - triggering snooze");
+                        
+                        let state_clone = self.state.clone();
+                        tokio::spawn(async move {
+                            trigger_snooze(&state_clone).await;
+                        });
+                        
+                        drop(state);
+                        return;
+                    } else {
+                        state.snooze_pressed = *pressed;
+                        println!("  SnoozePressed updated to: {}", pressed);
+                    }
                 }
             }
             "/avatar/parameters/StopPressed" => {
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
-                    state.stop_pressed = *pressed;
-                    println!("  StopPressed updated to: {}", pressed);
+                    if *pressed && state.is_ringing {
+                        state.stop_pressed = *pressed;
+                        println!("  Stop button pressed - stopping alarm completely");
+                        
+                        let state_clone = self.state.clone();
+                        tokio::spawn(async move {
+                            stop_alarm_completely(&state_clone).await;
+                        });
+                        
+                        drop(state);
+                        return;
+                    } else {
+                        state.stop_pressed = *pressed;
+                        println!("  StopPressed updated to: {}", pressed);
+                    }
                 }
             }
             _ => {
@@ -343,6 +425,7 @@ async fn send_alarm_set_hour(
     let hour = hour.clamp(0, 23);
     let vrc_value = hour_to_vrc_float(hour);
     let args = vec![OscType::Float(vrc_value)];
+    println!("hour: {}", vrc_value);
     send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", args, &state).await
 }
 
@@ -354,6 +437,7 @@ async fn send_alarm_set_minute(
     let minute = minute.clamp(0, 59);
     let vrc_value = minute_to_vrc_float(minute);
     let args = vec![OscType::Float(vrc_value)];
+    println!("minute: {}", vrc_value);
     send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", args, &state).await
 }
 
@@ -435,47 +519,218 @@ fn get_alarm_settings() -> Result<AlarmSettings, String> {
     Ok(load_settings())
 }
 
-// アラーム処理
-pub fn alarm_process() {
-    let current_time: DateTime<Local> = get_current_time();
-    let alarm_time: DateTime<Local> = get_alarm_time();
+// タイマー計算・セット関数
+async fn recalculate_and_set_timer(state: &AppStateMutex) {
+    let mut app_state = match state.lock() {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("Failed to lock state: {}", e);
+            return;
+        }
+    };
+    
+    // 既存タイマーのキャンセル
+    if let Some(handle) = app_state.active_timer_handle.take() {
+        handle.abort();
+        println!("Previous timer cancelled");
+    }
+    
+    // アラームOFFなら終了
+    if !app_state.alarm_is_on {
+        println!("Alarm is OFF, no timer set");
+        return;
+    }
+    
+    // 現在時刻の取得
+    let now = Local::now();
+    
+    // 設定時刻の取得（VRC float値から変換）
+    let alarm_hour = vrc_float_to_hour(app_state.alarm_set_hour) as u32;
+    let alarm_minute = vrc_float_to_minute(app_state.alarm_set_minute) as u32;
+    
+    // 今日の目標時刻を計算
+    let mut target_time = now
+        .with_hour(alarm_hour)
+        .and_then(|t| t.with_minute(alarm_minute))
+        .and_then(|t| t.with_second(0))
+        .and_then(|t| t.with_nanosecond(0))
+        .unwrap();
+    
+    // 現在時刻が目標時刻を過ぎていたら、明日の同じ時刻に設定
+    if now >= target_time {
+        target_time = target_time + chrono::Duration::days(1);
+    }
+    
+    // 待機時間の計算
+    let wait_duration = target_time.signed_duration_since(now);
+    let wait_std_duration = Duration::from_millis(wait_duration.num_milliseconds() as u64);
+    
+    println!(
+        "Next alarm set for: {} (in {} minutes)", 
+        target_time.format("%Y-%m-%d %H:%M:%S"), 
+        wait_duration.num_minutes()
+    );
+    
+    // 新しいタイマーをセット
+    let state_clone = state.clone();
+    let timer_handle = tokio::spawn(async move {
+        sleep(wait_std_duration).await;
+        
+        // スヌーズ回数をリセットして新しいアラームサイクル開始
+        if let Ok(mut app_state) = state_clone.lock() {
+            app_state.snooze_count = 0;
+        }
+        
+        // アラーム発火処理を呼び出す
+        fire_alarm(&state_clone).await;
+    });
+    
+    app_state.active_timer_handle = Some(timer_handle);
+}
 
-    if compare_time(current_time, alarm_time) {
-        println!("アラームが鳴っています");
-    } else {
-        println!("アラームは鳴っていません");
+// スヌーズ処理関数 (trigger_snooze)
+async fn trigger_snooze(state: &AppStateMutex) {
+    let mut app_state = match state.lock() {
+        Ok(state) => state,
+        Err(e) => {
+            eprintln!("Failed to lock state in trigger_snooze: {}", e);
+            return;
+        }
+    };
+    
+    // スヌーズ回数を増やす
+    app_state.snooze_count += 1;
+    println!("Snooze triggered. Count: {}/{}", app_state.snooze_count, app_state.max_snoozes);
+    
+    // 最大スヌーズ回数を超えた場合は完全停止
+    if app_state.snooze_count > app_state.max_snoozes {
+        println!("Max snoozes reached. Stopping alarm completely.");
+        
+        // 全タイマーをキャンセル
+        if let Some(handle) = app_state.active_timer_handle.take() {
+            handle.abort();
+        }
+        if let Some(handle) = app_state.ringing_timer_handle.take() {
+            handle.abort();
+        }
+        
+        // 状態リセット
+        app_state.is_ringing = false;
+        app_state.snooze_count = 0;
+        
+        drop(app_state);
+        
+        // 音を止めて翌日のアラームをセット
+        if let Err(e) = send_osc_to_vrchat(
+            "/avatar/parameters/AlarmShouldFire", 
+            vec![OscType::Bool(false)], 
+            state
+        ).await {
+            eprintln!("Failed to send alarm stop signal: {}", e);
+        }
+        
+        recalculate_and_set_timer(state).await;
+        return;
+    }
+    
+    // 鳴動タイマーをキャンセル
+    if let Some(handle) = app_state.ringing_timer_handle.take() {
+        handle.abort();
+    }
+    
+    app_state.is_ringing = false;
+    drop(app_state);
+    
+    // 音を止める
+    if let Err(e) = send_osc_to_vrchat(
+        "/avatar/parameters/AlarmShouldFire", 
+        vec![OscType::Bool(false)], 
+        state
+    ).await {
+        eprintln!("Failed to send alarm stop signal: {}", e);
+    }
+    
+    // 9分後に再発火するタイマーをセット
+    let state_clone = state.clone();
+    let snooze_handle = tokio::spawn(async move {
+        sleep(Duration::from_secs(9 * 60)).await; // 9分待機
+        fire_alarm(&state_clone).await;
+    });
+    
+    if let Ok(mut app_state) = state.lock() {
+        if let Some(old_handle) = app_state.active_timer_handle.take() {
+            old_handle.abort();
+        }
+        app_state.active_timer_handle = Some(snooze_handle);
     }
 }
 
-// 現在の時刻を取得する
-fn get_current_time() -> DateTime<Local> {
-    Local::now()
+// アラーム発火共通処理
+async fn fire_alarm(state: &AppStateMutex) {
+    println!("Alarm firing!");
+    
+    // VRChatにアラーム発火信号を送信
+    if let Err(e) = send_osc_to_vrchat(
+        "/avatar/parameters/AlarmShouldFire", 
+        vec![OscType::Bool(true)], 
+        state
+    ).await {
+        eprintln!("Failed to send alarm signal: {}", e);
+    }
+    
+    // 状態更新
+    if let Ok(mut app_state) = state.lock() {
+        app_state.is_ringing = true;
+    }
+    
+    // 15分後の鳴動タイマーをセット
+    let state_clone = state.clone();
+    let ringing_handle = tokio::spawn(async move {
+        sleep(Duration::from_secs(15 * 60)).await; // 15分待機
+        println!("15 minutes of ringing completed. Auto-triggering snooze.");
+        trigger_snooze(&state_clone).await;
+    });
+    
+    if let Ok(mut app_state) = state.lock() {
+        if let Some(old_handle) = app_state.ringing_timer_handle.take() {
+            old_handle.abort();
+        }
+        app_state.ringing_timer_handle = Some(ringing_handle);
+    }
 }
 
-// 設定ファイルのアラーム時間を取得する
-    fn get_alarm_time() -> DateTime<Local> {
-    let settings = load_settings();
-    let alarm_hour: u8 = settings.alarm_hour as u8;
-    let alarm_minute: u8 = settings.alarm_minute as u8;
-
-    let alarm_time: DateTime<Local> = DateTime::from_hms(alarm_hour, alarm_minute, 0);
-    alarm_time
+// 完全停止処理
+async fn stop_alarm_completely(state: &AppStateMutex) {
+    if let Ok(mut app_state) = state.lock() {
+        // 全タイマーをキャンセル
+        if let Some(handle) = app_state.active_timer_handle.take() {
+            handle.abort();
+        }
+        if let Some(handle) = app_state.ringing_timer_handle.take() {
+            handle.abort();
+        }
+        
+        // 状態リセット
+        app_state.is_ringing = false;
+        app_state.snooze_count = 0;
+    }
+    
+    // 音を止める
+    if let Err(e) = send_osc_to_vrchat(
+        "/avatar/parameters/AlarmShouldFire", 
+        vec![OscType::Bool(false)], 
+        state
+    ).await {
+        eprintln!("Failed to send alarm stop signal: {}", e);
+    }
+    
+    // 翌日のアラームをセット
+    recalculate_and_set_timer(state).await;
 }
-
-// 現在の時刻とアラームの時刻を比較する
-fn compare_time (current_time: DateTime<Local>, alarm_time: DateTime<Local>) -> bool {
-    current_time == alarm_time
-}
-
-// アラームが鳴っているかどうかを返す
-
-// アラームを鳴らす
-
-// アラームを止める
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
-    let initial_state = Arc::new(Mutex::new(AppState::default()));
+    let initial_state = Arc::new(Mutex::new(AppState::default())); 
     
     tauri::Builder::default()
         .plugin(tauri_plugin_opener::init())
@@ -523,6 +778,17 @@ pub fn run() {
                 
                 println!("Sent saved settings to VRChat on startup: {}:{} (VRC: {:.3}, {:.3})", 
                          settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc);
+                
+                // アプリ起動時にタイマーをセット
+                {
+                    let mut app_state = startup_state.lock().unwrap();
+                    app_state.alarm_set_hour = hour_vrc;
+                    app_state.alarm_set_minute = minute_vrc;
+                    app_state.alarm_is_on = settings.alarm_is_on;
+                    app_state.snooze_count = 0; // 起動時はスヌーズ回数をリセット
+                }
+                
+                recalculate_and_set_timer(&startup_state).await;
             });
             
             Ok(())
