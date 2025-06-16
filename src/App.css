@@ -1,3 +1,5 @@
+/* src/App.css */
+
 * {
   margin: 0;
   padding: 0;
@@ -108,7 +110,7 @@ html {
 .settings-panel {
   padding: 12px;
   border-top: 1px solid #f1f3f4;
-  background: #fafbfc;
+  background: white;
 }
 
 /* Quick Controls */
@@ -204,6 +206,7 @@ html {
 /* Advanced Settings */
 .settings-details {
   margin-bottom: 12px;
+  background: white;
 }
 
 .settings-details summary {
@@ -222,6 +225,7 @@ html {
 .advanced-settings {
   padding: 8px 0;
   border-top: 1px solid #e1e8ed;
+  background: white;
 }
 
 .setting-item {

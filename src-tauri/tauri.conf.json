@@ -14,9 +14,9 @@
 			{
 				"title": "VRC Alarm",
 				"width": 220,
-				"height": 400,
+				"height": 60,
 				"decorations": false,
-				"resizable": false,
+				"resizable": true,
 				"alwaysOnTop": true,
 				"transparent": true,
 				"skipTaskbar": true,

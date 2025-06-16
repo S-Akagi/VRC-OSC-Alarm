@@ -1,6 +1,9 @@
+// src/App.tsx
+
 import { useState, useEffect } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
+import { Window, LogicalSize } from "@tauri-apps/api/window";
 
 interface AppState {
 	last_osc_received: string | null;
@@ -108,6 +111,17 @@ function App() {
 	};
 
 	useEffect(() => {
+		const updateWindowSize = async () => {
+			const appWindow = await Window.getByLabel('main');
+			if (appWindow) {
+				const height = isExpanded ? 300 : 60;
+				await appWindow.setSize(new LogicalSize(220, height));
+			}
+		};
+		updateWindowSize();
+	}, [isExpanded]);
+
+	useEffect(() => {
 		loadSettings();
 		loadTimerSettings();
 		fetchAppState();
@@ -118,7 +132,6 @@ function App() {
 
 	return (
 		<div className="app">
-			{/* Current Alarm Display */}
 			<div className="alarm-display">
 				<div className="alarm-time">{formatTime(timerHour, timerMinute)}</div>
 				<div className="alarm-status">
@@ -135,17 +148,14 @@ function App() {
 				</button>
 			</div>
 
-			{/* Ringing Alert */}
 			{appState?.is_ringing && (
 				<div className="ringing-alert">
 					Snooze {appState.snooze_count}/{appState.max_snoozes}
 				</div>
 			)}
 
-			{/* Settings Panel */}
 			{isExpanded && (
 				<div className="settings-panel">
-					{/* Quick Controls */}
 					<div className="quick-controls">
 						<div className="time-setting">
 							<input
@@ -177,7 +187,6 @@ function App() {
 						<button onClick={saveAlarmSettings} className="save-btn">Save</button>
 					</div>
 
-					{/* Advanced Settings */}
 					<details className="settings-details">
 						<summary>Advanced</summary>
 						<div className="advanced-settings">
@@ -220,7 +229,6 @@ function App() {
 						</div>
 					</details>
 
-					{/* Connection Status */}
 					<div className="connection-status-compact">
 						<span className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}>
 							● {getConnectionStatus()}
