@@ -20,6 +20,8 @@ pub struct AppState {
     pub stop_pressed: bool,
 }
 
+
+
 // デフォルト状態
 impl Default for AppState {
     fn default() -> Self {
@@ -432,6 +434,44 @@ async fn save_alarm_settings(
 fn get_alarm_settings() -> Result<AlarmSettings, String> {
     Ok(load_settings())
 }
+
+// アラーム処理
+pub fn alarm_process() {
+    let current_time: DateTime<Local> = get_current_time();
+    let alarm_time: DateTime<Local> = get_alarm_time();
+
+    if compare_time(current_time, alarm_time) {
+        println!("アラームが鳴っています");
+    } else {
+        println!("アラームは鳴っていません");
+    }
+}
+
+// 現在の時刻を取得する
+fn get_current_time() -> DateTime<Local> {
+    Local::now()
+}
+
+// 設定ファイルのアラーム時間を取得する
+    fn get_alarm_time() -> DateTime<Local> {
+    let settings = load_settings();
+    let alarm_hour: u8 = settings.alarm_hour as u8;
+    let alarm_minute: u8 = settings.alarm_minute as u8;
+
+    let alarm_time: DateTime<Local> = DateTime::from_hms(alarm_hour, alarm_minute, 0);
+    alarm_time
+}
+
+// 現在の時刻とアラームの時刻を比較する
+fn compare_time (current_time: DateTime<Local>, alarm_time: DateTime<Local>) -> bool {
+    current_time == alarm_time
+}
+
+// アラームが鳴っているかどうかを返す
+
+// アラームを鳴らす
+
+// アラームを止める
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
