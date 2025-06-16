@@ -12,9 +12,15 @@
 	"app": {
 		"windows": [
 			{
-				"title": "vrc-osc-alarm",
-				"width": 800,
-				"height": 600
+				"title": "VRC Alarm",
+				"width": 220,
+				"height": 400,
+				"decorations": false,
+				"resizable": false,
+				"alwaysOnTop": true,
+				"transparent": true,
+				"skipTaskbar": true,
+				"visible": true
 			}
 		],
 		"security": {
