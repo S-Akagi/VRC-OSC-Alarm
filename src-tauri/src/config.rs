@@ -1,6 +1,6 @@
+use crate::types::AlarmSettings;
 use std::fs;
 use std::path::PathBuf;
-use crate::types::AlarmSettings;
 
 // 設定ファイル管理
 pub fn get_config_path() -> PathBuf {
@@ -10,6 +10,7 @@ pub fn get_config_path() -> PathBuf {
     path
 }
 
+// アラーム設定を読み込む
 pub fn load_settings() -> AlarmSettings {
     let config_path = get_config_path();
     
@@ -21,24 +22,26 @@ pub fn load_settings() -> AlarmSettings {
             }
         }
     }
-    
+
     println!("Using default settings");
     AlarmSettings::default()
 }
 
+// アラーム設定を保存
 pub fn save_settings(settings: &AlarmSettings) -> Result<(), String> {
     let config_path = get_config_path();
-    
+
     if let Some(parent) = config_path.parent() {
-        fs::create_dir_all(parent).map_err(|e| format!("Failed to create config directory: {}", e))?;
+        fs::create_dir_all(parent)
+            .map_err(|e| format!("Failed to create config directory: {}", e))?;
     }
-    
+
     let content = serde_json::to_string_pretty(settings)
         .map_err(|e| format!("Failed to serialize settings: {}", e))?;
-    
+
     fs::write(&config_path, content)
         .map_err(|e| format!("Failed to write settings file: {}", e))?;
-    
+
     println!("Saved settings to: {:?}", config_path);
     Ok(())
 }

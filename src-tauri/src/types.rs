@@ -1,25 +1,26 @@
-use serde::{Deserialize, Serialize};
 use chrono::{DateTime, Utc};
+use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
 
 /// アプリケーションの状態を管理する構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppState {
-    pub last_osc_received: Option<DateTime<Utc>>,
-    pub last_osc_sent: Option<DateTime<Utc>>,
-    pub alarm_set_hour: f32,
-    pub alarm_set_minute: f32,
-    pub alarm_is_on: bool,
-    pub snooze_pressed: bool,
-    pub stop_pressed: bool,
-    pub is_ringing: bool,
-    pub snooze_count: u32,
-    pub max_snoozes: u32,
-    pub ringing_duration_minutes: u32,
-    pub snooze_duration_minutes: u32,
+    pub last_osc_received: Option<DateTime<Utc>>, // OSC受信時間
+    pub last_osc_sent: Option<DateTime<Utc>>, // OSC送信時間
+    pub alarm_set_hour: f32, // アラーム時間
+    pub alarm_set_minute: f32, // アラーム分
+    pub alarm_is_on: bool, // アラームがオンかどうか
+    pub snooze_pressed: bool, // スヌーズボタンが押されたかどうか
+    pub stop_pressed: bool, // ストップボタンが押されたかどうか
+    pub is_ringing: bool, // アラームが鳴っているかどうか
+    pub snooze_count: u32, // スヌーズ回数
+    pub max_snoozes: u32, // 最大スヌーズ回数
+    pub ringing_duration_minutes: u32, // アラーム時間
+    pub snooze_duration_minutes: u32, // スヌーズ間隔
 }
 
+// デフォルト値を設定
 impl Default for AppState {
     fn default() -> Self {
         Self {
@@ -41,10 +42,12 @@ impl Default for AppState {
 
 pub type AppStateMutex = Arc<Mutex<AppState>>;
 
+// タイマー管理
 pub struct TimerManager {
     pub active_timer_handle: Option<JoinHandle<()>>,
 }
 
+// タイマー管理の実装
 impl TimerManager {
     pub fn new() -> Self {
         Self {
@@ -52,6 +55,7 @@ impl TimerManager {
         }
     }
 
+    // アクティブなタイマーをキャンセル
     pub fn cancel_active_timer(&mut self) {
         if let Some(handle) = self.active_timer_handle.take() {
             handle.abort();
@@ -59,6 +63,7 @@ impl TimerManager {
         }
     }
 
+    // アクティブなタイマーを設定
     pub fn set_active_timer(&mut self, handle: JoinHandle<()>) {
         self.cancel_active_timer();
         self.active_timer_handle = Some(handle);
@@ -67,6 +72,7 @@ impl TimerManager {
 
 pub type TimerManagerMutex = Arc<Mutex<TimerManager>>;
 
+// アラーム設定
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AlarmSettings {
     pub alarm_hour: i32,
@@ -77,6 +83,7 @@ pub struct AlarmSettings {
     pub snooze_duration_minutes: u32,
 }
 
+// アラーム設定のデフォルト値を設定
 impl Default for AlarmSettings {
     fn default() -> Self {
         Self {
@@ -90,6 +97,7 @@ impl Default for AlarmSettings {
     }
 }
 
+// タイマーイベント
 #[derive(Debug, Clone)]
 pub enum TimerEvent {
     AlarmFire,

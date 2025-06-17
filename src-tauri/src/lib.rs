@@ -1,22 +1,22 @@
+use rosc::OscType;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
-use rosc::OscType;
 
 // モジュール定義
-mod types;
-mod utils;
+mod commands;
 mod config;
 mod osc;
 mod timer;
-mod commands;
+mod types;
+mod utils;
 
 // 必要なモジュールのインポート
+use commands::*;
+use config::load_settings;
+use osc::{send_osc_to_vrchat, OscServer};
+use timer::calculate_and_set_next_alarm;
 use types::{AppState, TimerManager};
 use utils::{hour_to_vrc_float, minute_to_vrc_float};
-use config::load_settings;
-use osc::{OscServer, send_osc_to_vrchat};
-use timer::calculate_and_set_next_alarm;
-use commands::*;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -66,18 +66,38 @@ pub fn run() {
                 let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
                 let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
 
-                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", vec![OscType::Float(hour_vrc)], &startup_state).await {
+                if let Err(e) = send_osc_to_vrchat(
+                    "/avatar/parameters/AlarmSetHour",
+                    vec![OscType::Float(hour_vrc)],
+                    &startup_state,
+                )
+                .await
+                {
                     eprintln!("Failed to send AlarmSetHour on startup: {}", e);
                 }
-                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", vec![OscType::Float(minute_vrc)], &startup_state).await {
+                if let Err(e) = send_osc_to_vrchat(
+                    "/avatar/parameters/AlarmSetMinute",
+                    vec![OscType::Float(minute_vrc)],
+                    &startup_state,
+                )
+                .await
+                {
                     eprintln!("Failed to send AlarmSetMinute on startup: {}", e);
                 }
-                if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", vec![OscType::Bool(settings.alarm_is_on)], &startup_state).await {
+                if let Err(e) = send_osc_to_vrchat(
+                    "/avatar/parameters/AlarmIsOn",
+                    vec![OscType::Bool(settings.alarm_is_on)],
+                    &startup_state,
+                )
+                .await
+                {
                     eprintln!("Failed to send AlarmIsOn on startup: {}", e);
                 }
 
-                println!("Sent saved settings to VRChat on startup: {}:{} (VRC: {:.3}, {:.3})",
-                         settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc);
+                println!(
+                    "Sent saved settings to VRChat on startup: {}:{} (VRC: {:.3}, {:.3})",
+                    settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc
+                );
 
                 // アプリ状態を初期化
                 {
@@ -90,7 +110,7 @@ pub fn run() {
                     app_state.ringing_duration_minutes = settings.ringing_duration_minutes;
                     app_state.snooze_duration_minutes = settings.snooze_duration_minutes;
                 }
-                
+
                 // 次のアラームを計算してタイマーをセット
                 calculate_and_set_next_alarm(startup_state, startup_timer_mgr).await;
             });

@@ -1,10 +1,10 @@
+use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
+use crate::types::{AppStateMutex, TimerEvent, TimerManagerMutex};
+use crate::utils::{vrc_float_to_hour, vrc_float_to_minute};
+use chrono::Utc;
+use rosc::{OscMessage, OscPacket, OscType};
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
-use rosc::{OscMessage, OscPacket, OscType};
-use chrono::Utc;
-use crate::types::{AppStateMutex, TimerManagerMutex, TimerEvent};
-use crate::utils::{vrc_float_to_hour, vrc_float_to_minute};
-use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
 
 /// OSCサーバー構造体
 pub struct OscServer {
@@ -14,13 +14,17 @@ pub struct OscServer {
 
 impl OscServer {
     /// 新しいOSCサーバーを作成
-    pub async fn new(state: AppStateMutex, timer_manager: TimerManagerMutex) -> Result<Self, Box<dyn std::error::Error>> {
+    pub async fn new(
+        state: AppStateMutex,
+        timer_manager: TimerManagerMutex,
+    ) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             state,
             timer_manager,
         })
     }
 
+    // OSCサーバーを起動
     pub async fn start(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format!("127.0.0.1:{}", port);
         let socket = UdpSocket::bind(&addr).await?;
@@ -42,7 +46,11 @@ impl OscServer {
         }
     }
 
-    fn handle_osc_packet(&self, packet: OscPacket) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
+    // OSCパケットを処理
+    fn handle_osc_packet(
+        &self,
+        packet: OscPacket,
+    ) -> std::pin::Pin<Box<dyn std::future::Future<Output = ()> + Send + '_>> {
         Box::pin(async move {
             match packet {
                 OscPacket::Message(msg) => {
@@ -57,19 +65,26 @@ impl OscServer {
         })
     }
 
+    // OSCメッセージを処理
     async fn handle_osc_message(&self, msg: OscMessage) {
         let mut state = self.state.lock().unwrap();
         state.last_osc_received = Some(Utc::now());
 
-        println!("Received OSC message: {} with {} args", msg.addr, msg.args.len());
+        println!(
+            "Received OSC message: {} with {} args",
+            msg.addr,
+            msg.args.len()
+        );
 
+        // OSCメッセージのアドレスに応じて処理
         match msg.addr.as_str() {
             "/avatar/parameters/AlarmSetHour" => {
+                // アラーム時間を設定
                 if let Some(OscType::Float(hour_float)) = msg.args.first() {
                     let hour = vrc_float_to_hour(*hour_float);
                     state.alarm_set_hour = *hour_float;
                     println!("  AlarmSetHour updated: {} ({}h)", hour_float, hour);
-                    
+
                     drop(state);
                     let state_clone = self.state.clone();
                     let timer_mgr_clone = self.timer_manager.clone();
@@ -77,6 +92,7 @@ impl OscServer {
                 }
             }
             "/avatar/parameters/AlarmSetMinute" => {
+                // アラーム分を設定
                 if let Some(OscType::Float(minute_float)) = msg.args.first() {
                     let minute = vrc_float_to_minute(*minute_float);
                     state.alarm_set_minute = *minute_float;
@@ -89,6 +105,7 @@ impl OscServer {
                 }
             }
             "/avatar/parameters/AlarmIsOn" => {
+                // アラームがオンかどうか
                 if let Some(OscType::Bool(is_on)) = msg.args.first() {
                     state.alarm_is_on = *is_on;
                     println!("  AlarmIsOn updated to: {}", is_on);
@@ -100,6 +117,7 @@ impl OscServer {
                 }
             }
             "/avatar/parameters/SnoozePressed" => {
+                // スヌーズボタンが押されたかどうか
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
                     if *pressed && state.is_ringing {
                         state.snooze_pressed = *pressed;
@@ -108,7 +126,11 @@ impl OscServer {
                         drop(state);
                         let state_clone = self.state.clone();
                         let timer_mgr_clone = self.timer_manager.clone();
-                        handle_timer_event_sync(state_clone, timer_mgr_clone, TimerEvent::SnoozeEnd);
+                        handle_timer_event_sync(
+                            state_clone,
+                            timer_mgr_clone,
+                            TimerEvent::SnoozeEnd,
+                        );
                     } else {
                         state.snooze_pressed = *pressed;
                         println!("  SnoozePressed updated to: {}", pressed);
@@ -116,11 +138,12 @@ impl OscServer {
                 }
             }
             "/avatar/parameters/StopPressed" => {
+                // ストップボタンが押されたかどうか
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
                     if *pressed && state.is_ringing {
                         state.stop_pressed = *pressed;
                         println!("  Stop button pressed");
-                        
+
                         drop(state);
                         let state_clone = self.state.clone();
                         let timer_mgr_clone = self.timer_manager.clone();
@@ -140,7 +163,12 @@ impl OscServer {
     }
 }
 
-pub async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppStateMutex) -> Result<(), String> {
+// OSCメッセージをVRChatに送信
+pub async fn send_osc_to_vrchat(
+    address: &str,
+    args: Vec<OscType>,
+    state: &AppStateMutex,
+) -> Result<(), String> {
     let target_ip = "127.0.0.1";
     let target_port = 9000;
 
@@ -148,7 +176,8 @@ pub async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppSt
         .parse()
         .map_err(|e| format!("Invalid target address: {}", e))?;
 
-    let client_socket = UdpSocket::bind("0.0.0.0:0").await
+    let client_socket = UdpSocket::bind("0.0.0.0:0")
+        .await
         .map_err(|e| format!("Failed to bind client socket: {}", e))?;
 
     let msg = OscMessage {
@@ -160,13 +189,16 @@ pub async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppSt
     let msg_buf = rosc::encoder::encode(&packet)
         .map_err(|e| format!("Failed to encode OSC message: {}", e))?;
 
-    client_socket.send_to(&msg_buf, target).await
+    client_socket
+        .send_to(&msg_buf, target)
+        .await
         .map_err(|e| format!("Failed to send OSC message: {}", e))?;
 
-    // Wait a bit to ensure the message is sent before socket is dropped
+    // メッセージが送信されるのを待つ
     tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
 
-    let mut app_state = state.lock()
+    let mut app_state = state
+        .lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
     app_state.last_osc_sent = Some(Utc::now());
 
@@ -174,6 +206,11 @@ pub async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppSt
     Ok(())
 }
 
-fn handle_timer_event_sync(state: AppStateMutex, timer_manager: TimerManagerMutex, event: TimerEvent) {
+// タイマーイベントを処理
+fn handle_timer_event_sync(
+    state: AppStateMutex,
+    timer_manager: TimerManagerMutex,
+    event: TimerEvent,
+) {
     tokio::spawn(handle_timer_event(state, timer_manager, event));
 }
