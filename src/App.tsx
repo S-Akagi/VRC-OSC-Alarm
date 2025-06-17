@@ -1,10 +1,11 @@
 // src/App.tsx
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
 import "./App.css";
-import { Window, LogicalSize } from "@tauri-apps/api/window";
+import { Window, LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
 
+// === Type Definitions ===
 interface AppState {
 	last_osc_received: string | null;
 	last_osc_sent: string | null;
@@ -26,7 +27,9 @@ interface AlarmSettings {
 	alarm_is_on: boolean;
 }
 
+// === Main App Component ===
 function App() {
+	// === State Management ===
 	const [timerHour, setTimerHour] = useState(7);
 	const [timerMinute, setTimerMinute] = useState(0);
 	const [appState, setAppState] = useState<AppState | null>(null);
@@ -36,6 +39,7 @@ function App() {
 	const [ringingDuration, setRingingDuration] = useState(15);
 	const [snoozeDuration, setSnoozeDuration] = useState(9);
 
+	// === Backend API Functions ===
 	async function fetchAppState() {
 		try {
 			const state = await invoke<AppState>("get_current_state");
@@ -93,6 +97,49 @@ function App() {
 		}
 	}
 
+	// === Window Management Functions ===
+	const handleWindowDrag = async () => {
+		const appWindow = getCurrentWindow();
+		await appWindow.startDragging();
+	};
+
+	const handleMinimize = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const appWindow = getCurrentWindow();
+		await appWindow.minimize();
+	};
+
+	const handleClose = async (e: React.MouseEvent) => {
+		e.stopPropagation();
+		const appWindow = getCurrentWindow();
+		await appWindow.close();
+	};
+
+	const updateWindowSize = useCallback(async () => {
+		const appWindow = await Window.getByLabel('main');
+		if (appWindow) {
+			let height = 80; // Base height (28px titlebar + 53px content)
+			
+			if (appState?.is_ringing) {
+				height += 28; // Add space for ringing alert
+			}
+			
+			if (isExpanded) {
+				height += 138; // Add space for settings panel
+				
+				// Check if advanced settings are open
+				const advancedDetails = document.querySelector('.settings-details');
+				if (advancedDetails && advancedDetails.hasAttribute('open')) {
+					height += 120; // Add space for advanced settings
+				}
+			}
+			
+			console.log('Updating window size to:', height);
+			await appWindow.setSize(new LogicalSize(220, height));
+		}
+	}, [isExpanded, appState?.is_ringing]);
+
+	// === Utility Functions ===
 	const formatTime = (hour: number, minute: number) => {
 		return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
 	};
@@ -110,16 +157,10 @@ function App() {
 		return timeDiff < 10000 ? 'Connected' : 'Disconnected';
 	};
 
+	// === Effects ===
 	useEffect(() => {
-		const updateWindowSize = async () => {
-			const appWindow = await Window.getByLabel('main');
-			if (appWindow) {
-				const height = isExpanded ? 300 : 60;
-				await appWindow.setSize(new LogicalSize(220, height));
-			}
-		};
 		updateWindowSize();
-	}, [isExpanded]);
+	}, [updateWindowSize]);
 
 	useEffect(() => {
 		loadSettings();
@@ -130,8 +171,21 @@ function App() {
 		return () => clearInterval(interval);
 	}, []);
 
+	// === Render ===
 	return (
 		<div className="app">
+			{/* Custom Titlebar */}
+			<div className="custom-titlebar" onMouseDown={handleWindowDrag}>
+				<div className="titlebar-content">
+					<span className="window-title">VRC Alarm</span>
+					<div className="titlebar-buttons">
+						<button className="titlebar-btn minimize-btn" onClick={handleMinimize}>−</button>
+						<button className="titlebar-btn close-btn" onClick={handleClose}>×</button>
+					</div>
+				</div>
+			</div>
+
+			{/* Main Alarm Display */}
 			<div className="alarm-display">
 				<div className="alarm-time">{formatTime(timerHour, timerMinute)}</div>
 				<div className="alarm-status">
@@ -148,14 +202,17 @@ function App() {
 				</button>
 			</div>
 
+			{/* Ringing Alert */}
 			{appState?.is_ringing && (
 				<div className="ringing-alert">
 					Snooze {appState.snooze_count}/{appState.max_snoozes}
 				</div>
 			)}
 
+			{/* Settings Panel */}
 			{isExpanded && (
 				<div className="settings-panel">
+					{/* Quick Controls */}
 					<div className="quick-controls">
 						<div className="time-setting">
 							<input
@@ -187,7 +244,8 @@ function App() {
 						<button onClick={saveAlarmSettings} className="save-btn">Save</button>
 					</div>
 
-					<details className="settings-details">
+					{/* Advanced Settings */}
+					<details className="settings-details" onToggle={updateWindowSize}>
 						<summary>Advanced</summary>
 						<div className="advanced-settings">
 							<div className="setting-item">
@@ -229,6 +287,7 @@ function App() {
 						</div>
 					</details>
 
+					{/* Connection Status */}
 					<div className="connection-status-compact">
 						<span className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}>
 							● {getConnectionStatus()}
