@@ -246,7 +246,7 @@ function App() {
 			</div>
 
 			{/* Ringing Alert */}
-			{appState?.is_ringing && (
+			{(appState?.is_ringing || appState?.snooze_count > 0) && (
 				<div className="ringing-alert">
 					Snooze {appState.snooze_count}/{appState.max_snoozes}
 				</div>

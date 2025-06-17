@@ -163,6 +163,9 @@ pub async fn send_osc_to_vrchat(address: &str, args: Vec<OscType>, state: &AppSt
     client_socket.send_to(&msg_buf, target).await
         .map_err(|e| format!("Failed to send OSC message: {}", e))?;
 
+    // Wait a bit to ensure the message is sent before socket is dropped
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
     let mut app_state = state.lock()
         .map_err(|e| format!("Failed to lock state: {}", e))?;
     app_state.last_osc_sent = Some(Utc::now());

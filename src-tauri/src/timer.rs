@@ -147,16 +147,22 @@ pub fn handle_timer_event(
                     timer_mgr.cancel_active_timer();
                 }
 
+                // Immediately send stop signal to VRChat
                 println!("Sending AlarmShouldFire false to stop ringing...");
-                if let Err(e) = send_osc_to_vrchat(
-                    "/avatar/parameters/AlarmShouldFire",
-                    vec![OscType::Bool(false)],
-                    &state,
-                ).await {
-                    eprintln!("Failed to send alarm stop signal: {}", e);
-                } else {
-                    println!("Successfully sent AlarmShouldFire false");
-                }
+                tokio::spawn({
+                    let state_clone = state.clone();
+                    async move {
+                        if let Err(e) = send_osc_to_vrchat(
+                            "/avatar/parameters/AlarmShouldFire",
+                            vec![OscType::Bool(false)],
+                            &state_clone,
+                        ).await {
+                            eprintln!("Failed to send alarm stop signal: {}", e);
+                        } else {
+                            println!("Successfully sent AlarmShouldFire false");
+                        }
+                    }
+                });
 
                 if should_stop {
                     // Max snoozes reached - send final stop signal
