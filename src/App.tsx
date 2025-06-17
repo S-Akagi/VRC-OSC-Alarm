@@ -137,7 +137,6 @@ function App() {
 		}
 	};
 
-
 	const updateWindowSize = useCallback(async () => {
 		const appWindow = await Window.getByLabel("main");
 		if (appWindow) {
@@ -198,10 +197,7 @@ function App() {
 	return (
 		<div className="app">
 			{/* Custom Titlebar */}
-			<div
-				className="custom-titlebar"
-				onMouseDown={handleWindowDrag}
-			>
+			<div className="custom-titlebar" onMouseDown={handleWindowDrag}>
 				<div className="titlebar-content">
 					<span className="window-title">VRC Alarm</span>
 					<div className="titlebar-buttons">
@@ -234,7 +230,7 @@ function App() {
 						style={{ backgroundColor: getStatusColor() }}
 					></div>
 					<span className="status-text">
-						{appState?.is_ringing ? "RINGING" : alarmIsOn ? "ON" : "OFF"}
+						{appState?.is_ringing ? "アラーム中" : alarmIsOn ? "オン" : "オフ"}
 					</span>
 				</div>
 				<button
@@ -248,7 +244,7 @@ function App() {
 			{/* Ringing Alert */}
 			{(appState?.is_ringing || appState?.snooze_count > 0) && (
 				<div className="ringing-alert">
-					Snooze {appState.snooze_count}/{appState.max_snoozes}
+					スヌーズ {appState.snooze_count}/{appState.max_snoozes}
 				</div>
 			)}
 
@@ -285,16 +281,16 @@ function App() {
 							<span className="toggle-slider-small"></span>
 						</label>
 						<button onClick={saveAlarmSettings} className="save-btn">
-							Save
+							保存
 						</button>
 					</div>
 
 					{/* Advanced Settings */}
 					<details className="settings-details" onToggle={updateWindowSize}>
-						<summary>Advanced</summary>
+						<summary>詳細設定</summary>
 						<div className="advanced-settings">
 							<div className="setting-item">
-								<label>Max Snoozes:</label>
+								<label>最大スヌーズ回数:</label>
 								<input
 									type="number"
 									value={maxSnoozes}
@@ -305,7 +301,7 @@ function App() {
 								/>
 							</div>
 							<div className="setting-item">
-								<label>Ring Duration (min):</label>
+								<label>アラーム時間 (分):</label>
 								<input
 									type="number"
 									value={ringingDuration}
@@ -316,7 +312,7 @@ function App() {
 								/>
 							</div>
 							<div className="setting-item">
-								<label>Snooze Duration (min):</label>
+								<label>スヌーズ間隔 (分):</label>
 								<input
 									type="number"
 									value={snoozeDuration}
@@ -327,7 +323,7 @@ function App() {
 								/>
 							</div>
 							<button onClick={saveTimerSettings} className="save-btn-small">
-								Save Timer Settings
+								タイマー設定保存
 							</button>
 						</div>
 					</details>
@@ -337,7 +333,7 @@ function App() {
 						<span
 							className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}
 						>
-							● {getConnectionStatus()}
+							● {getConnectionStatus() === "Connected" ? "接続中" : "未接続"}
 						</span>
 					</div>
 				</div>
