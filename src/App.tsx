@@ -157,7 +157,7 @@ function App() {
       {/* カスタムタイトルバー */}
       <div className="custom-titlebar" onMouseDown={handleWindowDrag}>
         <div className="titlebar-content">
-          <span className="window-title">VRC Alarm</span>
+          <span className="window-title">VRC OSC Alarm System</span>
           <div className="titlebar-buttons">
             <button
               type="button"
