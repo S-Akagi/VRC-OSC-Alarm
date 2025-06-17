@@ -1,9 +1,9 @@
 // src/App.tsx
 
-import { useState, useEffect, useCallback } from "react";
 import { invoke } from "@tauri-apps/api/core";
+import { useCallback, useEffect, useState } from "react";
 import "./App.css";
-import { Window, LogicalSize, getCurrentWindow } from "@tauri-apps/api/window";
+import { LogicalSize, Window, getCurrentWindow } from "@tauri-apps/api/window";
 
 // === Type Definitions ===
 interface AppState {
@@ -62,7 +62,8 @@ function App() {
 
 	async function loadTimerSettings() {
 		try {
-			const [max, ringing, snooze] = await invoke<[number, number, number]>("get_timer_settings");
+			const [max, ringing, snooze] =
+				await invoke<[number, number, number]>("get_timer_settings");
 			setMaxSnoozes(max);
 			setRingingDuration(ringing);
 			setSnoozeDuration(snooze);
@@ -98,63 +99,85 @@ function App() {
 	}
 
 	// === Window Management Functions ===
-	const handleWindowDrag = async () => {
-		const appWindow = getCurrentWindow();
-		await appWindow.startDragging();
+	const handleWindowDrag = async (e: React.MouseEvent) => {
+		// Only start dragging if clicking on the titlebar content, not buttons
+		if ((e.target as HTMLElement).closest(".titlebar-buttons")) {
+			return;
+		}
+
+		try {
+			const appWindow = getCurrentWindow();
+			await appWindow.startDragging();
+		} catch (error) {
+			console.error("Failed to start dragging:", error);
+		}
 	};
 
 	const handleMinimize = async (e: React.MouseEvent) => {
 		e.stopPropagation();
-		const appWindow = getCurrentWindow();
-		await appWindow.minimize();
+		e.preventDefault();
+
+		try {
+			const appWindow = getCurrentWindow();
+			await appWindow.minimize();
+		} catch (error) {
+			console.error("Failed to minimize window:", error);
+		}
 	};
 
 	const handleClose = async (e: React.MouseEvent) => {
 		e.stopPropagation();
-		const appWindow = getCurrentWindow();
-		await appWindow.close();
+		e.preventDefault();
+
+		try {
+			const appWindow = getCurrentWindow();
+			await appWindow.close();
+		} catch (error) {
+			console.error("Failed to close window:", error);
+		}
 	};
 
+
 	const updateWindowSize = useCallback(async () => {
-		const appWindow = await Window.getByLabel('main');
+		const appWindow = await Window.getByLabel("main");
 		if (appWindow) {
 			let height = 80; // Base height (28px titlebar + 53px content)
-			
+
 			if (appState?.is_ringing) {
 				height += 28; // Add space for ringing alert
 			}
-			
+
 			if (isExpanded) {
 				height += 138; // Add space for settings panel
-				
+
 				// Check if advanced settings are open
-				const advancedDetails = document.querySelector('.settings-details');
-				if (advancedDetails && advancedDetails.hasAttribute('open')) {
+				const advancedDetails = document.querySelector(".settings-details");
+				if (advancedDetails && advancedDetails.hasAttribute("open")) {
 					height += 120; // Add space for advanced settings
 				}
 			}
-			
-			console.log('Updating window size to:', height);
+
+			console.log("Updating window size to:", height);
 			await appWindow.setSize(new LogicalSize(220, height));
 		}
 	}, [isExpanded, appState?.is_ringing]);
 
 	// === Utility Functions ===
 	const formatTime = (hour: number, minute: number) => {
-		return `${hour.toString().padStart(2, '0')}:${minute.toString().padStart(2, '0')}`;
+		return `${hour.toString().padStart(2, "0")}:${minute.toString().padStart(2, "0")}`;
 	};
 
 	const getStatusColor = () => {
-		if (appState?.is_ringing) return '#ff4757';
-		if (alarmIsOn) return '#2ed573';
-		return '#747d8c';
+		if (appState?.is_ringing) return "#ff4757";
+		if (alarmIsOn) return "#2ed573";
+		return "#747d8c";
 	};
 
 	const getConnectionStatus = () => {
-		if (!appState?.last_osc_received) return 'Disconnected';
+		if (!appState?.last_osc_received) return "Disconnected";
 		const lastReceived = new Date(appState.last_osc_received);
 		const timeDiff = Date.now() - lastReceived.getTime();
-		return timeDiff < 10000 ? 'Connected' : 'Disconnected';
+		return timeDiff < 10000 ? "Connected" : "Disconnected";
 	};
 
 	// === Effects ===
@@ -166,7 +189,7 @@ function App() {
 		loadSettings();
 		loadTimerSettings();
 		fetchAppState();
-		
+
 		const interval = setInterval(fetchAppState, 1000);
 		return () => clearInterval(interval);
 	}, []);
@@ -175,12 +198,29 @@ function App() {
 	return (
 		<div className="app">
 			{/* Custom Titlebar */}
-			<div className="custom-titlebar" onMouseDown={handleWindowDrag}>
+			<div
+				className="custom-titlebar"
+				onMouseDown={handleWindowDrag}
+			>
 				<div className="titlebar-content">
 					<span className="window-title">VRC Alarm</span>
 					<div className="titlebar-buttons">
-						<button className="titlebar-btn minimize-btn" onClick={handleMinimize}>−</button>
-						<button className="titlebar-btn close-btn" onClick={handleClose}>×</button>
+						<button
+							className="titlebar-btn minimize-btn"
+							onClick={handleMinimize}
+							title="Minimize"
+							aria-label="Minimize window"
+						>
+							−
+						</button>
+						<button
+							className="titlebar-btn close-btn"
+							onClick={handleClose}
+							title="Close"
+							aria-label="Close window"
+						>
+							×
+						</button>
 					</div>
 				</div>
 			</div>
@@ -189,16 +229,19 @@ function App() {
 			<div className="alarm-display">
 				<div className="alarm-time">{formatTime(timerHour, timerMinute)}</div>
 				<div className="alarm-status">
-					<div className="status-dot" style={{ backgroundColor: getStatusColor() }}></div>
+					<div
+						className="status-dot"
+						style={{ backgroundColor: getStatusColor() }}
+					></div>
 					<span className="status-text">
-						{appState?.is_ringing ? 'RINGING' : alarmIsOn ? 'ON' : 'OFF'}
+						{appState?.is_ringing ? "RINGING" : alarmIsOn ? "ON" : "OFF"}
 					</span>
 				</div>
-				<button 
+				<button
 					className="expand-btn"
 					onClick={() => setIsExpanded(!isExpanded)}
 				>
-					{isExpanded ? '−' : '+'}
+					{isExpanded ? "−" : "+"}
 				</button>
 			</div>
 
@@ -241,7 +284,9 @@ function App() {
 							/>
 							<span className="toggle-slider-small"></span>
 						</label>
-						<button onClick={saveAlarmSettings} className="save-btn">Save</button>
+						<button onClick={saveAlarmSettings} className="save-btn">
+							Save
+						</button>
 					</div>
 
 					{/* Advanced Settings */}
@@ -289,7 +334,9 @@ function App() {
 
 					{/* Connection Status */}
 					<div className="connection-status-compact">
-						<span className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}>
+						<span
+							className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}
+						>
 							● {getConnectionStatus()}
 						</span>
 					</div>

@@ -1,354 +1,363 @@
 /* src/App.css */
 
 * {
-  margin: 0;
-  padding: 0;
-  box-sizing: border-box;
+	margin: 0;
+	padding: 0;
+	box-sizing: border-box;
 }
 
 body {
-  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-  background: transparent;
-  color: #2c3e50;
-  font-size: 14px;
-  overflow: hidden;
-  margin: 0;
-  padding: 0;
+	font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+	background: transparent;
+	color: #2c3e50;
+	font-size: 14px;
+	overflow: hidden;
+	margin: 0;
+	padding: 0;
 }
 
 html {
-  background: transparent;
-  margin: 0;
-  padding: 0;
+	background: transparent;
+	margin: 0;
+	padding: 0;
 }
 
 .app {
-  width: 220px;
-  background: white;
-  border-radius: 8px;
-  box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
-  overflow: hidden;
-  border: 1px solid #e1e8ed;
+	width: 220px;
+	background: white;
+	border-radius: 8px;
+	box-shadow: 0 4px 20px rgba(0, 0, 0, 0.15);
+	overflow: hidden;
+	border: 1px solid #e1e8ed;
 }
 
 /* Custom Titlebar */
 .custom-titlebar {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-  height: 28px;
-  display: flex;
-  align-items: center;
-  cursor: grab;
-  user-select: none;
+	background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+	height: 28px;
+	display: flex;
+	align-items: center;
+	cursor: grab;
+	user-select: none;
 }
 
 .custom-titlebar:active {
-  cursor: grabbing;
+	cursor: grabbing;
 }
 
 .titlebar-content {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  width: 100%;
-  padding: 0 8px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	width: 100%;
+	padding: 0 8px;
 }
 
 .window-title {
-  color: white;
-  font-size: 12px;
-  font-weight: 500;
-  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+	color: white;
+	font-size: 12px;
+	font-weight: 500;
+	text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
 }
 
 .titlebar-buttons {
-  display: flex;
-  gap: 4px;
+	display: flex;
+	gap: 4px;
 }
 
 .titlebar-btn {
-  width: 16px;
-  height: 16px;
-  border: none;
-  border-radius: 2px;
-  font-size: 12px;
-  font-weight: bold;
-  cursor: pointer;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
-  color: white;
-  background: rgba(255, 255, 255, 0.2);
+	width: 16px;
+	height: 16px;
+	border: none;
+	border-radius: 2px;
+	font-size: 12px;
+	font-weight: bold;
+	cursor: pointer;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s ease;
+	color: white;
+	background: rgba(255, 255, 255, 0.2);
 }
 
 .titlebar-btn:hover {
-  background: rgba(255, 255, 255, 0.3);
+	background: rgba(255, 255, 255, 0.3);
 }
 
 .minimize-btn:hover {
-  background: rgba(255, 193, 7, 0.8);
+	background: rgba(255, 193, 7, 0.8);
+}
+
+.maximize-btn:hover {
+	background: rgba(40, 167, 69, 0.8);
 }
 
 .close-btn:hover {
-  background: rgba(220, 53, 69, 0.8);
+	background: rgba(220, 53, 69, 0.8);
 }
 
 /* Main Alarm Display */
 .alarm-display {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 12px 16px;
-  background: white;
+	display: flex;
+	align-items: center;
+	justify-content: space-between;
+	padding: 12px 16px;
+	background: white;
 }
 
 .alarm-time {
-  font-size: 20px;
-  font-weight: 600;
-  font-variant-numeric: tabular-nums;
-  color: #2c3e50;
+	font-size: 20px;
+	font-weight: 600;
+	font-variant-numeric: tabular-nums;
+	color: #2c3e50;
 }
 
 .alarm-status {
-  display: flex;
-  align-items: center;
-  gap: 6px;
+	display: flex;
+	align-items: center;
+	gap: 6px;
 }
 
 .status-dot {
-  width: 8px;
-  height: 8px;
-  border-radius: 50%;
+	width: 8px;
+	height: 8px;
+	border-radius: 50%;
 }
 
 .status-text {
-  font-size: 11px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  color: #666;
+	font-size: 11px;
+	font-weight: 600;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	color: #666;
 }
 
 .expand-btn {
-  background: rgba(102, 126, 234, 0.1);
-  border: none;
-  color: #667eea;
-  width: 24px;
-  height: 24px;
-  border-radius: 4px;
-  cursor: pointer;
-  font-size: 16px;
-  font-weight: bold;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  transition: all 0.2s ease;
+	background: rgba(102, 126, 234, 0.1);
+	border: none;
+	color: #667eea;
+	width: 24px;
+	height: 24px;
+	border-radius: 4px;
+	cursor: pointer;
+	font-size: 16px;
+	font-weight: bold;
+	display: flex;
+	align-items: center;
+	justify-content: center;
+	transition: all 0.2s ease;
 }
 
 .expand-btn:hover {
-  background: rgba(102, 126, 234, 0.2);
-  color: #5a67d8;
+	background: rgba(102, 126, 234, 0.2);
+	color: #5a67d8;
 }
 
 /* Ringing Alert */
 .ringing-alert {
-  background: #ff4757;
-  color: white;
-  padding: 6px 16px;
-  text-align: center;
-  font-weight: 600;
-  font-size: 11px;
-  text-transform: uppercase;
-  letter-spacing: 0.5px;
-  animation: pulse 1.5s infinite;
+	background: #ff4757;
+	color: white;
+	padding: 6px 16px;
+	text-align: center;
+	font-weight: 600;
+	font-size: 11px;
+	text-transform: uppercase;
+	letter-spacing: 0.5px;
+	animation: pulse 1.5s infinite;
 }
 
 @keyframes pulse {
-  0%, 100% { opacity: 1; }
-  50% { opacity: 0.8; }
+	0%,
+	100% {
+		opacity: 1;
+	}
+	50% {
+		opacity: 0.8;
+	}
 }
 
 /* Settings Panel */
 .settings-panel {
-  padding: 12px;
-  border-top: 1px solid #f1f3f4;
-  background: white;
+	padding: 12px;
+	border-top: 1px solid #f1f3f4;
+	background: white;
 }
 
 /* Quick Controls */
 .quick-controls {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin-bottom: 12px;
-  padding: 8px;
-  background: white;
-  border-radius: 6px;
-  border: 1px solid #e1e8ed;
+	display: flex;
+	align-items: center;
+	gap: 8px;
+	margin-bottom: 12px;
+	padding: 8px;
+	background: white;
+	border-radius: 6px;
+	border: 1px solid #e1e8ed;
 }
 
 .time-setting {
-  display: flex;
-  align-items: center;
-  gap: 3px;
+	display: flex;
+	align-items: center;
+	gap: 3px;
 }
 
 .time-input-small {
-  width: 35px;
-  height: 24px;
-  border: 1px solid #ddd;
-  border-radius: 4px;
-  text-align: center;
-  font-size: 12px;
-  font-weight: 500;
+	width: 35px;
+	height: 24px;
+	border: 1px solid #ddd;
+	border-radius: 4px;
+	text-align: center;
+	font-size: 12px;
+	font-weight: 500;
 }
 
 .time-input-small:focus {
-  outline: none;
-  border-color: #667eea;
-  box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
+	outline: none;
+	border-color: #667eea;
+	box-shadow: 0 0 0 2px rgba(102, 126, 234, 0.1);
 }
 
 .toggle-small {
-  display: flex;
-  align-items: center;
-  cursor: pointer;
+	display: flex;
+	align-items: center;
+	cursor: pointer;
 }
 
 .toggle-small input[type="checkbox"] {
-  display: none;
+	display: none;
 }
 
 .toggle-slider-small {
-  width: 32px;
-  height: 18px;
-  background: #ddd;
-  border-radius: 9px;
-  position: relative;
-  transition: all 0.2s ease;
+	width: 32px;
+	height: 18px;
+	background: #ddd;
+	border-radius: 9px;
+	position: relative;
+	transition: all 0.2s ease;
 }
 
 .toggle-slider-small::before {
-  content: '';
-  position: absolute;
-  width: 14px;
-  height: 14px;
-  background: white;
-  border-radius: 50%;
-  top: 2px;
-  left: 2px;
-  transition: all 0.2s ease;
-  box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
+	content: "";
+	position: absolute;
+	width: 14px;
+	height: 14px;
+	background: white;
+	border-radius: 50%;
+	top: 2px;
+	left: 2px;
+	transition: all 0.2s ease;
+	box-shadow: 0 1px 3px rgba(0, 0, 0, 0.2);
 }
 
 .toggle-small input:checked + .toggle-slider-small {
-  background: #2ed573;
+	background: #2ed573;
 }
 
 .toggle-small input:checked + .toggle-slider-small::before {
-  transform: translateX(14px);
+	transform: translateX(14px);
 }
 
 .save-btn {
-  background: #667eea;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 11px;
-  font-weight: 500;
-  cursor: pointer;
-  transition: background 0.2s ease;
+	background: #667eea;
+	color: white;
+	border: none;
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 11px;
+	font-weight: 500;
+	cursor: pointer;
+	transition: background 0.2s ease;
 }
 
 .save-btn:hover {
-  background: #5a67d8;
+	background: #5a67d8;
 }
 
 /* Advanced Settings */
 .settings-details {
-  margin-bottom: 12px;
-  background: white;
+	margin-bottom: 12px;
+	background: white;
 }
 
 .settings-details summary {
-  cursor: pointer;
-  padding: 6px 0;
-  font-weight: 500;
-  color: #667eea;
-  user-select: none;
-  font-size: 12px;
+	cursor: pointer;
+	padding: 6px 0;
+	font-weight: 500;
+	color: #667eea;
+	user-select: none;
+	font-size: 12px;
 }
 
 .settings-details summary:hover {
-  color: #5a67d8;
+	color: #5a67d8;
 }
 
 .advanced-settings {
-  padding: 8px 0;
-  border-top: 1px solid #e1e8ed;
-  background: white;
+	padding: 8px 0;
+	border-top: 1px solid #e1e8ed;
+	background: white;
 }
 
 .setting-item {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 6px;
+	display: flex;
+	justify-content: space-between;
+	align-items: center;
+	margin-bottom: 6px;
 }
 
 .setting-item label {
-  font-size: 11px;
-  color: #666;
-  flex: 1;
+	font-size: 11px;
+	color: #666;
+	flex: 1;
 }
 
 .setting-input-small {
-  width: 40px;
-  height: 20px;
-  border: 1px solid #ddd;
-  border-radius: 3px;
-  text-align: center;
-  font-size: 11px;
+	width: 40px;
+	height: 20px;
+	border: 1px solid #ddd;
+	border-radius: 3px;
+	text-align: center;
+	font-size: 11px;
 }
 
 .setting-input-small:focus {
-  outline: none;
-  border-color: #667eea;
+	outline: none;
+	border-color: #667eea;
 }
 
 .save-btn-small {
-  background: #74b9ff;
-  color: white;
-  border: none;
-  padding: 4px 8px;
-  border-radius: 4px;
-  font-size: 10px;
-  font-weight: 500;
-  cursor: pointer;
-  width: 100%;
-  margin-top: 6px;
-  transition: background 0.2s ease;
+	background: #74b9ff;
+	color: white;
+	border: none;
+	padding: 4px 8px;
+	border-radius: 4px;
+	font-size: 10px;
+	font-weight: 500;
+	cursor: pointer;
+	width: 100%;
+	margin-top: 6px;
+	transition: background 0.2s ease;
 }
 
 .save-btn-small:hover {
-  background: #0984e3;
+	background: #0984e3;
 }
 
 /* Connection Status */
 .connection-status-compact {
-  text-align: center;
+	text-align: center;
 }
 
 .connection-indicator {
-  font-size: 10px;
-  font-weight: 500;
+	font-size: 10px;
+	font-weight: 500;
 }
 
 .connection-indicator.connected {
-  color: #2ed573;
+	color: #2ed573;
 }
 
 .connection-indicator.disconnected {
-  color: #ff4757;
+	color: #ff4757;
 }
