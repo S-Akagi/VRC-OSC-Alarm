@@ -128,12 +128,47 @@ function App() {
     }
   }
 
+  // ライセンス情報表示
+  async function showLicenseInfo() {
+    try {
+      const { message } = await import("@tauri-apps/plugin-dialog");
+      const licenseText = `VRC OSC Alarm v0.1.0
+
+このソフトウェアは以下のオープンソースライブラリを使用しています：
+
+【主要フレームワーク】
+• Tauri Framework (MIT/Apache-2.0)
+• React (MIT)
+• TypeScript (Apache-2.0)
+
+【Rustライブラリ】
+• Tokio (MIT) - 非同期ランタイム
+• Serde (MIT/Apache-2.0) - シリアライゼーション
+• Chrono (MIT/Apache-2.0) - 日時処理
+• ROSC (MIT/Apache-2.0) - OSC通信
+• Reqwest (MIT/Apache-2.0) - HTTP通信
+
+使用している全ライブラリは MIT, Apache-2.0, MPL-2.0 ライセンスの下で提供されており、すべて商用利用が許可されています。
+
+本ソフトウェアはVRChatの非公式ツールです。
+VRChat Inc. とは関係ありません。`;
+
+      await message(licenseText, { 
+        title: "ライセンス情報", 
+        kind: "info" 
+      });
+    } catch (error) {
+      console.error("ライセンス情報表示に失敗しました:", error);
+    }
+  }
+
   // ウィンドウをドラッグ
   const handleWindowDrag = async (e: React.MouseEvent) => {
     if ((e.target as HTMLElement).closest(".titlebar-buttons")) return;
 
     await getCurrentWindow().startDragging();
   };
+
 
   // ウィンドウを最小化
   const handleMinimize = async (e: React.MouseEvent) => {
@@ -155,7 +190,7 @@ function App() {
     let height = 80;
     if (appState?.is_ringing) height += 28; // アラーム中の場合は28px追加
     if (isExpanded) {
-      height += 138;
+      height += 148; // 基本設定パネル + ライセンステキスト分（138 + 10）
       const advancedDetails = document.querySelector(".settings-details");
       if (advancedDetails?.hasAttribute("open")) height += 120; // 詳細設定が開いている場合は120px追加
     }
@@ -341,11 +376,14 @@ function App() {
             </div>
           </details>
 
-          {/* 接続状態 */}
+          {/* 接続状態とライセンス */}
           <div className="connection-status-compact">
             <span className={`connection-indicator ${getConnectionStatus().toLowerCase()}`}>
               ● {getConnectionStatus() === "Connected" ? "接続中" : "未接続"}
             </span>
+            <button type="button" onClick={showLicenseInfo} className="license-btn">
+              ライセンス情報
+            </button>
           </div>
         </div>
       )}

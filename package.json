@@ -2,6 +2,9 @@
   "name": "vrc-osc-alarm",
   "private": true,
   "version": "0.1.0",
+  "license": "MIT",
+  "author": "Akagi",
+  "description": "VRChat OSC Alarm System",
   "type": "module",
   "scripts": {
     "dev": "vite",

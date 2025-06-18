@@ -347,6 +347,9 @@ html {
 /* Connection Status */
 .connection-status-compact {
   text-align: center;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
 }
 
 .connection-indicator {
@@ -360,4 +363,19 @@ html {
 
 .connection-indicator.disconnected {
   color: #ff4757;
+}
+
+.license-btn {
+  background: transparent;
+  color: #95a5a6;
+  border: none;
+  padding: 0;
+  font-size: 9px;
+  cursor: pointer;
+  text-decoration: underline;
+  transition: color 0.2s;
+}
+
+.license-btn:hover {
+  color: #5a6c7d;
 }

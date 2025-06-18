@@ -1,3 +1,14 @@
+/*
+ * VRC OSC Alarm
+ * Copyright (c) 2024 S-Akagi
+ * 
+ * This software incorporates components from various open source projects.
+ * See LICENSE file for complete license information.
+ * 
+ * This software is provided "as is" without warranty of any kind.
+ * VRChat is a trademark of VRChat Inc. This software is not affiliated with VRChat Inc.
+ */
+
 use rosc::OscType;
 use std::sync::{Arc, Mutex};
 use tokio::time::{sleep, Duration};
