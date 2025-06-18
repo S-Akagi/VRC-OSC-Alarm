@@ -38,9 +38,10 @@ pub fn run() {
             // OSCサーバー用の状態クローン
             let server_state = state.clone();
             let server_timer_mgr = timer_mgr.clone();
+            let server_handle = _handle.clone();
             // OSCサーバーを非同期で起動
             tauri::async_runtime::spawn(async move {
-                let osc_server = match OscServer::new(server_state, server_timer_mgr).await {
+                let osc_server = match OscServer::new(server_state, server_timer_mgr, Some(server_handle)).await {
                     Ok(server) => server,
                     Err(e) => {
                         eprintln!("Failed to create OSC server: {}", e);

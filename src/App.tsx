@@ -1,4 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
+import { listen } from "@tauri-apps/api/event";
 import { useCallback, useEffect, useState } from "react";
 import "./App.css";
 import { LogicalSize, Window, getCurrentWindow } from "@tauri-apps/api/window";
@@ -149,7 +150,20 @@ function App() {
     fetchAppState(); // アプリの状態を取得
 
     const interval = setInterval(fetchAppState, 1000); // 1秒ごとにアプリの状態を取得
-    return () => clearInterval(interval); // コンポーネントがアンマウントされたらインターバルをクリア
+
+    // VRCからの設定変更イベントをリッスン
+    const unlistenAlarmSettings = listen<AlarmSettings>("alarm-settings-changed", (event) => {
+      const settings = event.payload;
+      setTimerHour(settings.alarm_hour);
+      setTimerMinute(settings.alarm_minute);
+      setAlarmIsOn(settings.alarm_is_on);
+      console.log("アラーム設定がVRCから更新されました:", settings);
+    });
+
+    return () => {
+      clearInterval(interval); // コンポーネントがアンマウントされたらインターバルをクリア
+      unlistenAlarmSettings.then(unlisten => unlisten()); // イベントリスナーも解除
+    };
   }, []);
 
   return (
