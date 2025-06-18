@@ -187,6 +187,27 @@ impl OscServer {
                     state.alarm_is_on = *is_on;
                     println!("  AlarmIsOn updated to: {}", is_on);
 
+                    // 設定を保存
+                    let current_settings = load_settings();
+                    let new_settings = AlarmSettings {
+                        alarm_hour: current_settings.alarm_hour,
+                        alarm_minute: current_settings.alarm_minute,
+                        alarm_is_on: *is_on,
+                        max_snoozes: current_settings.max_snoozes,
+                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
+                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
+                    };
+                    if let Err(e) = save_settings(&new_settings) {
+                        eprintln!("Failed to save alarm_is_on setting: {}", e);
+                    }
+
+                    // UIに設定変更を通知
+                    if let Some(ref handle) = self.app_handle {
+                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
+                            eprintln!("Failed to emit alarm settings changed event: {}", e);
+                        }
+                    }
+
                     drop(state);
                     let state_clone = self.state.clone();
                     let timer_mgr_clone = self.timer_manager.clone();
