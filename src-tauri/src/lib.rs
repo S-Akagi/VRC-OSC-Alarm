@@ -127,6 +127,27 @@ pub fn run() {
                 calculate_and_set_next_alarm(startup_state, startup_timer_mgr).await;
             });
 
+            // ハートビート送信用の状態クローン
+            let heartbeat_state = state.clone();
+            // VRChatへのハートビート送信を開始
+            tauri::async_runtime::spawn(async move {
+                // 起動完了を待つ
+                sleep(Duration::from_secs(5)).await;
+                
+                let mut interval = tokio::time::interval(Duration::from_secs(30)); // 30秒間隔
+                loop {
+                    interval.tick().await;
+                    
+                    // 現在の設定を取得してハートビートとして送信
+                    let settings = load_settings();
+                    
+                    // ハートビートとして設定値をまとめて送信
+                    if let Err(e) = osc::send_heartbeat_to_vrchat(&heartbeat_state, &settings).await {
+                        eprintln!("Heartbeat failed: {}", e);
+                    }
+                }
+            });
+
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![

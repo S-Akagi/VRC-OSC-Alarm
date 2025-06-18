@@ -214,7 +214,7 @@ VRChat Inc. とは関係ありません。`;
     if (!appState?.last_osc_received) return "Disconnected"; // 接続がない場合は未接続
     const lastReceived = new Date(appState.last_osc_received);
     const timeDiff = Date.now() - lastReceived.getTime();
-    return timeDiff < 10000 ? "Connected" : "Disconnected"; // 10秒以内に受信した場合は接続中
+    return timeDiff < 60000 ? "Connected" : "Disconnected"; // 60秒以内に受信した場合は接続中
   };
 
   // ウィンドウサイズを更新

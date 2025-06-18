@@ -241,6 +241,70 @@ impl OscServer {
     }
 }
 
+// ハートビート用のバンドル送信
+pub async fn send_heartbeat_to_vrchat(
+    state: &AppStateMutex,
+    settings: &crate::types::AlarmSettings,
+) -> Result<(), String> {
+    use crate::utils::{hour_to_vrc_float, minute_to_vrc_float};
+    
+    let target_ip = "127.0.0.1";
+    let target_port = 9000;
+
+    let target: SocketAddr = format!("{}:{}", target_ip, target_port)
+        .parse()
+        .map_err(|e| format!("Invalid target address: {}", e))?;
+
+    let client_socket = UdpSocket::bind("0.0.0.0:0")
+        .await
+        .map_err(|e| format!("Failed to bind client socket: {}", e))?;
+
+    // 複数のOSCメッセージをバンドルとして作成
+    let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
+    let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
+    
+    let messages = vec![
+        OscMessage {
+            addr: "/avatar/parameters/AlarmSetHour".to_string(),
+            args: vec![OscType::Float(hour_vrc)],
+        },
+        OscMessage {
+            addr: "/avatar/parameters/AlarmSetMinute".to_string(),
+            args: vec![OscType::Float(minute_vrc)],
+        },
+        OscMessage {
+            addr: "/avatar/parameters/AlarmIsOn".to_string(),
+            args: vec![OscType::Bool(settings.alarm_is_on)],
+        },
+    ];
+
+    // OSCバンドルとしてパケージング
+    let bundle = rosc::OscBundle {
+        timetag: rosc::OscTime { seconds: 0, fractional: 1 }, // 即座に実行
+        content: messages.into_iter().map(OscPacket::Message).collect(),
+    };
+
+    let packet = OscPacket::Bundle(bundle);
+    let msg_buf = rosc::encoder::encode(&packet)
+        .map_err(|e| format!("Failed to encode OSC bundle: {}", e))?;
+
+    client_socket
+        .send_to(&msg_buf, target)
+        .await
+        .map_err(|e| format!("Failed to send OSC bundle: {}", e))?;
+
+    // メッセージが送信されるのを待つ
+    tokio::time::sleep(tokio::time::Duration::from_millis(10)).await;
+
+    let mut app_state = state
+        .lock()
+        .map_err(|e| format!("Failed to lock state: {}", e))?;
+    app_state.last_osc_sent = Some(Utc::now());
+
+    println!("Sent heartbeat bundle to VRChat at {}", target);
+    Ok(())
+}
+
 // OSCメッセージをVRChatに送信
 pub async fn send_osc_to_vrchat(
     address: &str,
