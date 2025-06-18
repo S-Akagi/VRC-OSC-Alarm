@@ -4,8 +4,25 @@ use crate::types::{AlarmSettings, AppState, AppStateMutex};
 use crate::utils::{hour_to_vrc_float, minute_to_vrc_float};
 use chrono::Utc;
 use rosc::{OscMessage, OscPacket, OscType};
+use serde::{Deserialize, Serialize};
 use std::net::SocketAddr;
 use tokio::net::UdpSocket;
+
+#[derive(Serialize, Deserialize)]
+struct GitHubRelease {
+    tag_name: String,
+    name: String,
+    html_url: String,
+    published_at: String,
+}
+
+#[derive(Serialize, Deserialize)]
+pub struct UpdateInfo {
+    pub current_version: String,
+    pub latest_version: String,
+    pub has_update: bool,
+    pub download_url: String,
+}
 
 // OSC送信コマンド
 #[tauri::command]
@@ -268,4 +285,73 @@ pub fn get_timer_settings(state: tauri::State<AppStateMutex>) -> Result<(u32, u3
         app_state.ringing_duration_minutes,
         app_state.snooze_duration_minutes,
     ))
+}
+
+// 現在のバージョンを取得
+#[tauri::command]
+pub fn get_current_version() -> String {
+    env!("CARGO_PKG_VERSION").to_string()
+}
+
+// アップデート確認
+#[tauri::command]
+pub async fn check_for_updates() -> Result<UpdateInfo, String> {
+    let current_version = get_current_version();
+    
+    // GitHub Releases APIから最新バージョンを取得
+    let url = "https://api.github.com/repos/S-Akagi/VRC-OSC-Alarm/releases/latest";
+     let client = reqwest::Client::new();
+    
+    let response = client
+        .get(url)
+        .header("User-Agent", "VRC-OSC-Alarm")
+        .send()
+        .await
+        .map_err(|e| format!("Failed to fetch release info: {}", e))?;
+    
+    if !response.status().is_success() {
+        return Err(format!("GitHub API returned status: {}", response.status()));
+    }
+    
+    let release: GitHubRelease = response
+        .json()
+        .await
+        .map_err(|e| format!("Failed to parse release info: {}", e))?;
+    
+    let latest_version = release.tag_name.trim_start_matches('v');
+    let has_update = compare_versions(&current_version, latest_version);
+    
+    Ok(UpdateInfo {
+        current_version,
+        latest_version: latest_version.to_string(),
+        has_update,
+        download_url: release.html_url,
+    })
+}
+
+// バージョン比較（簡易実装）
+fn compare_versions(current: &str, latest: &str) -> bool {
+    let current_parts: Vec<u32> = current
+        .split('.')
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    let latest_parts: Vec<u32> = latest
+        .split('.')
+        .filter_map(|s| s.parse().ok())
+        .collect();
+    
+    let max_len = current_parts.len().max(latest_parts.len());
+    
+    for i in 0..max_len {
+        let current_part = current_parts.get(i).unwrap_or(&0);
+        let latest_part = latest_parts.get(i).unwrap_or(&0);
+        
+        if latest_part > current_part {
+            return true;
+        } else if latest_part < current_part {
+            return false;
+        }
+    }
+    
+    false
 }

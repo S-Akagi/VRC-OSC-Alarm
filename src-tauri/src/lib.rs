@@ -25,7 +25,7 @@ pub fn run() {
     let timer_manager = Arc::new(Mutex::new(TimerManager::new()));
 
     tauri::Builder::default()
-        .plugin(tauri_plugin_opener::init())
+        .plugin(tauri_plugin_dialog::init())
         .manage(initial_state.clone())
         .manage(timer_manager.clone())
         .setup(move |app| {
@@ -131,7 +131,9 @@ pub fn run() {
             save_alarm_settings,
             get_alarm_settings,
             save_timer_settings,
-            get_timer_settings
+            get_timer_settings,
+            get_current_version,
+            check_for_updates
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");

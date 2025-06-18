@@ -27,6 +27,14 @@ interface AlarmSettings {
   alarm_is_on: boolean; // アラームがオンかどうか
 }
 
+// アップデート情報の型
+interface UpdateInfo {
+  current_version: string;
+  latest_version: string;
+  has_update: boolean;
+  download_url: string;
+}
+
 // メインアプリコンポーネント
 function App() {
   const [timerHour, setTimerHour] = useState(7); // アラーム時間
@@ -37,6 +45,7 @@ function App() {
   const [maxSnoozes, setMaxSnoozes] = useState(5); // 最大スヌーズ回数
   const [ringingDuration, setRingingDuration] = useState(15); // アラーム時間
   const [snoozeDuration, setSnoozeDuration] = useState(9); // スヌーズ間隔
+  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null); // アップデート情報
 
   // アプリの状態を取得
   const fetchAppState = async () => {
@@ -81,6 +90,42 @@ function App() {
       ringingDurationMinutes: ringingDuration,
       snoozeDurationMinutes: snoozeDuration,
     });
+  }
+
+  // アップデート確認
+  async function checkForUpdates() {
+    console.log("アップデート確認を開始します...");
+    try {
+      const update = await invoke<UpdateInfo>("check_for_updates");
+      console.log("アップデート確認結果:", update);
+      setUpdateInfo(update);
+      if (update.has_update) {
+        console.log("新しいバージョンが利用可能です");
+        await showUpdateDialog(update);
+      } else {
+        console.log("アップデートはありません");
+      }
+    } catch (error) {
+      console.error("アップデート確認に失敗しました:", error);
+    }
+  }
+
+  // ネイティブダイアログでアップデート通知
+  async function showUpdateDialog(update: UpdateInfo) {
+    try {
+      const { confirm } = await import("@tauri-apps/plugin-dialog");
+      const result = await confirm(
+        `新しいバージョンが利用可能です。\n\n現在のバージョン: v${update.current_version}\n最新バージョン: v${update.latest_version}\n\nダウンロードページを開きますか？`,
+        { title: "アップデート通知", kind: "info" },
+      );
+
+      if (result) {
+        console.log("Opening URL:", update.download_url);
+        window.open(update.download_url, "_blank");
+      }
+    } catch (error) {
+      console.error("ダイアログ表示に失敗しました:", error);
+    }
   }
 
   // ウィンドウをドラッグ
@@ -149,6 +194,9 @@ function App() {
     loadTimerSettings(); // タイマー設定を読み込む
     fetchAppState(); // アプリの状態を取得
 
+    // 5秒後にアップデート確認（起動完了後に実行）
+    setTimeout(checkForUpdates, 5000);
+
     const interval = setInterval(fetchAppState, 1000); // 1秒ごとにアプリの状態を取得
 
     // VRCからの設定変更イベントをリッスン
@@ -162,7 +210,7 @@ function App() {
 
     return () => {
       clearInterval(interval); // コンポーネントがアンマウントされたらインターバルをクリア
-      unlistenAlarmSettings.then(unlisten => unlisten()); // イベントリスナーも解除
+      unlistenAlarmSettings.then((unlisten) => unlisten()); // イベントリスナーも解除
     };
   }, []);
 

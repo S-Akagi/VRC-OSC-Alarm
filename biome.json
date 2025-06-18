@@ -7,7 +7,7 @@
   },
   "files": {
     "ignoreUnknown": false,
-    "ignore": ["src-tauri/*", "node_modules/*"]
+    "ignore": ["src-tauri/*", "node_modules/*", "dist/*", "package.json", "package-lock.json"]
   },
   "formatter": {
     "enabled": true,
