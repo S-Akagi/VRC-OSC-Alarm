@@ -166,10 +166,6 @@ pub async fn load_and_send_settings(
     )
     .await?;
 
-    println!(
-        "Sent saved settings to VRChat: {}:{} (VRC: {:.3}, {:.3})",
-        settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc
-    );
     Ok(settings)
 }
 
@@ -222,10 +218,6 @@ pub async fn save_alarm_settings(
     )
     .await?;
 
-    println!(
-        "Saved and sent settings to VRChat: {}:{} (VRC: {:.3}, {:.3})",
-        settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc
-    );
     Ok(())
 }
 
@@ -267,10 +259,6 @@ pub async fn save_timer_settings(
         app_state.snooze_duration_minutes = settings.snooze_duration_minutes;
     }
 
-    println!(
-        "Saved timer settings: max_snoozes={}, ringing={}min, snooze={}min",
-        settings.max_snoozes, settings.ringing_duration_minutes, settings.snooze_duration_minutes
-    );
     Ok(())
 }
 

@@ -106,10 +106,6 @@ pub fn run() {
                     eprintln!("Failed to send AlarmIsOn on startup: {}", e);
                 }
 
-                println!(
-                    "Sent saved settings to VRChat on startup: {}:{} (VRC: {:.3}, {:.3})",
-                    settings.alarm_hour, settings.alarm_minute, hour_vrc, minute_vrc
-                );
 
                 // アプリ状態を初期化
                 {

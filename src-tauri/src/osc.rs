@@ -55,7 +55,6 @@ impl OscServer {
     pub async fn start(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format!("127.0.0.1:{}", port);
         let socket = UdpSocket::bind(&addr).await?;
-        println!("OSC Server listening on {}", addr);
 
         let mut buf = [0u8; 1024];
 
@@ -97,11 +96,6 @@ impl OscServer {
         let mut state = self.state.lock().unwrap();
         state.last_osc_received = Some(Utc::now());
 
-        println!(
-            "Received OSC message: {} with {} args",
-            msg.addr,
-            msg.args.len()
-        );
 
         // OSCメッセージのアドレスに応じて処理
         match msg.addr.as_str() {
@@ -111,7 +105,6 @@ impl OscServer {
                     let hour = vrc_float_to_hour(*hour_float);
                     let clamped_vrc_value = hour_to_vrc_float(hour);
                     state.alarm_set_hour = clamped_vrc_value;
-                    println!("  AlarmSetHour updated: {} -> {} ({}h)", hour_float, clamped_vrc_value, hour);
 
                     // 値が変更された場合のみVRC側に再送信
                     if (*hour_float - clamped_vrc_value).abs() > 0.001 {
@@ -146,7 +139,6 @@ impl OscServer {
                     let minute = vrc_float_to_minute(*minute_float);
                     let clamped_vrc_value = minute_to_vrc_float(minute);
                     state.alarm_set_minute = clamped_vrc_value;
-                    println!("  AlarmSetMinute updated: {} -> {} ({}m)", minute_float, clamped_vrc_value, minute);
 
                     // 値が変更された場合のみVRC側に再送信
                     if (*minute_float - clamped_vrc_value).abs() > 0.001 {
@@ -179,7 +171,6 @@ impl OscServer {
                 // アラームがオンかどうか
                 if let Some(OscType::Bool(is_on)) = msg.args.first() {
                     state.alarm_is_on = *is_on;
-                    println!("  AlarmIsOn updated to: {}", is_on);
 
                     // 設定を保存・通知
                     if let Err(e) = self.update_and_notify_settings(|settings| {
@@ -199,7 +190,6 @@ impl OscServer {
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
                     if *pressed && state.is_ringing {
                         state.snooze_pressed = *pressed;
-                        println!("  Snooze button pressed");
 
                         drop(state);
                         let state_clone = self.state.clone();
@@ -211,7 +201,6 @@ impl OscServer {
                         );
                     } else {
                         state.snooze_pressed = *pressed;
-                        println!("  SnoozePressed updated to: {}", pressed);
                     }
                 }
             }
@@ -220,7 +209,6 @@ impl OscServer {
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
                     if *pressed && state.is_ringing {
                         state.stop_pressed = *pressed;
-                        println!("  Stop button pressed");
 
                         drop(state);
                         let state_clone = self.state.clone();
@@ -228,14 +216,11 @@ impl OscServer {
                         handle_timer_event_sync(state_clone, timer_mgr_clone, TimerEvent::Stop);
                     } else {
                         state.stop_pressed = *pressed;
-                        println!("  StopPressed updated to: {}", pressed);
                     }
                 }
             }
             _ => {
-                for (i, arg) in msg.args.iter().enumerate() {
-                    println!("  Arg {}: {:?}", i, arg);
-                }
+                // Unknown message - ignore silently
             }
         }
     }
@@ -301,7 +286,6 @@ pub async fn send_heartbeat_to_vrchat(
         .map_err(|e| format!("Failed to lock state: {}", e))?;
     app_state.last_osc_sent = Some(Utc::now());
 
-    println!("Sent heartbeat bundle to VRChat at {}", target);
     Ok(())
 }
 
@@ -344,7 +328,6 @@ pub async fn send_osc_to_vrchat(
         .map_err(|e| format!("Failed to lock state: {}", e))?;
     app_state.last_osc_sent = Some(Utc::now());
 
-    println!("Sent OSC to VRChat: {} at {}", address, target);
     Ok(())
 }
 

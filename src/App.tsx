@@ -94,16 +94,11 @@ function App() {
 
   // アップデート確認
   async function checkForUpdates() {
-    console.log("アップデート確認を開始します...");
     try {
       const update = await invoke<UpdateInfo>("check_for_updates");
-      console.log("アップデート確認結果:", update);
       setUpdateInfo(update);
       if (update.has_update) {
-        console.log("新しいバージョンが利用可能です");
         await showUpdateDialog(update);
-      } else {
-        console.log("アップデートはありません");
       }
     } catch (error) {
       console.error("アップデート確認に失敗しました:", error);
@@ -120,7 +115,6 @@ function App() {
       );
 
       if (result) {
-        console.log("Opening URL:", update.download_url);
         window.open(update.download_url, "_blank");
       }
     } catch (error) {
@@ -240,7 +234,6 @@ VRChat Inc. とは関係ありません。`;
       setTimerHour(settings.alarm_hour);
       setTimerMinute(settings.alarm_minute);
       setAlarmIsOn(settings.alarm_is_on);
-      console.log("アラーム設定がVRCから更新されました:", settings);
     });
 
     return () => {
