@@ -1,15 +1,18 @@
+use crate::config::{load_settings, save_settings};
 use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
-use crate::types::{AppStateMutex, TimerEvent, TimerManagerMutex};
-use crate::utils::{vrc_float_to_hour, vrc_float_to_minute};
+use crate::types::{AlarmSettings, AppStateMutex, TimerEvent, TimerManagerMutex};
+use crate::utils::{hour_to_vrc_float, minute_to_vrc_float, vrc_float_to_hour, vrc_float_to_minute};
 use chrono::Utc;
 use rosc::{OscMessage, OscPacket, OscType};
 use std::net::SocketAddr;
+use tauri::Emitter;
 use tokio::net::UdpSocket;
 
 /// OSCサーバー構造体
 pub struct OscServer {
     state: AppStateMutex,
     timer_manager: TimerManagerMutex,
+    app_handle: Option<tauri::AppHandle>,
 }
 
 impl OscServer {
@@ -17,10 +20,12 @@ impl OscServer {
     pub async fn new(
         state: AppStateMutex,
         timer_manager: TimerManagerMutex,
+        app_handle: Option<tauri::AppHandle>,
     ) -> Result<Self, Box<dyn std::error::Error>> {
         Ok(Self {
             state,
             timer_manager,
+            app_handle,
         })
     }
 
@@ -82,8 +87,44 @@ impl OscServer {
                 // アラーム時間を設定
                 if let Some(OscType::Float(hour_float)) = msg.args.first() {
                     let hour = vrc_float_to_hour(*hour_float);
-                    state.alarm_set_hour = *hour_float;
-                    println!("  AlarmSetHour updated: {} ({}h)", hour_float, hour);
+                    let clamped_vrc_value = hour_to_vrc_float(hour);
+                    state.alarm_set_hour = clamped_vrc_value;
+                    println!("  AlarmSetHour updated: {} -> {} ({}h)", hour_float, clamped_vrc_value, hour);
+
+                    // 値が変更された場合のみVRC側に再送信
+                    if (*hour_float - clamped_vrc_value).abs() > 0.001 {
+                        let state_clone = self.state.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = send_osc_to_vrchat(
+                                "/avatar/parameters/AlarmSetHour",
+                                vec![OscType::Float(clamped_vrc_value)],
+                                &state_clone,
+                            ).await {
+                                eprintln!("Failed to sync AlarmSetHour to VRC: {}", e);
+                            }
+                        });
+                    }
+
+                    // 設定を保存
+                    let current_settings = load_settings();
+                    let new_settings = AlarmSettings {
+                        alarm_hour: hour,
+                        alarm_minute: current_settings.alarm_minute,
+                        alarm_is_on: current_settings.alarm_is_on,
+                        max_snoozes: current_settings.max_snoozes,
+                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
+                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
+                    };
+                    if let Err(e) = save_settings(&new_settings) {
+                        eprintln!("Failed to save hour setting: {}", e);
+                    }
+
+                    // UIに設定変更を通知
+                    if let Some(ref handle) = self.app_handle {
+                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
+                            eprintln!("Failed to emit alarm settings changed event: {}", e);
+                        }
+                    }
 
                     drop(state);
                     let state_clone = self.state.clone();
@@ -95,8 +136,44 @@ impl OscServer {
                 // アラーム分を設定
                 if let Some(OscType::Float(minute_float)) = msg.args.first() {
                     let minute = vrc_float_to_minute(*minute_float);
-                    state.alarm_set_minute = *minute_float;
-                    println!("  AlarmSetMinute updated: {} ({}m)", minute_float, minute);
+                    let clamped_vrc_value = minute_to_vrc_float(minute);
+                    state.alarm_set_minute = clamped_vrc_value;
+                    println!("  AlarmSetMinute updated: {} -> {} ({}m)", minute_float, clamped_vrc_value, minute);
+
+                    // 値が変更された場合のみVRC側に再送信
+                    if (*minute_float - clamped_vrc_value).abs() > 0.001 {
+                        let state_clone = self.state.clone();
+                        tokio::spawn(async move {
+                            if let Err(e) = send_osc_to_vrchat(
+                                "/avatar/parameters/AlarmSetMinute",
+                                vec![OscType::Float(clamped_vrc_value)],
+                                &state_clone,
+                            ).await {
+                                eprintln!("Failed to sync AlarmSetMinute to VRC: {}", e);
+                            }
+                        });
+                    }
+
+                    // 設定を保存
+                    let current_settings = load_settings();
+                    let new_settings = AlarmSettings {
+                        alarm_hour: current_settings.alarm_hour,
+                        alarm_minute: minute,
+                        alarm_is_on: current_settings.alarm_is_on,
+                        max_snoozes: current_settings.max_snoozes,
+                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
+                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
+                    };
+                    if let Err(e) = save_settings(&new_settings) {
+                        eprintln!("Failed to save minute setting: {}", e);
+                    }
+
+                    // UIに設定変更を通知
+                    if let Some(ref handle) = self.app_handle {
+                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
+                            eprintln!("Failed to emit alarm settings changed event: {}", e);
+                        }
+                    }
 
                     drop(state);
                     let state_clone = self.state.clone();
