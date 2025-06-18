@@ -29,6 +29,28 @@ impl OscServer {
         })
     }
 
+    /// 設定を更新してUIに通知する共通ヘルパー
+    fn update_and_notify_settings<F>(&self, update_fn: F) -> Result<(), String>
+    where
+        F: FnOnce(&mut AlarmSettings),
+    {
+        let mut settings = load_settings();
+        update_fn(&mut settings);
+        
+        if let Err(e) = save_settings(&settings) {
+            return Err(format!("Failed to save settings: {}", e));
+        }
+
+        // UIに設定変更を通知
+        if let Some(ref handle) = self.app_handle {
+            if let Err(e) = handle.emit("alarm-settings-changed", &settings) {
+                eprintln!("Failed to emit alarm settings changed event: {}", e);
+            }
+        }
+        
+        Ok(())
+    }
+
     // OSCサーバーを起動
     pub async fn start(&self, port: u16) -> Result<(), Box<dyn std::error::Error>> {
         let addr = format!("127.0.0.1:{}", port);
@@ -105,25 +127,11 @@ impl OscServer {
                         });
                     }
 
-                    // 設定を保存
-                    let current_settings = load_settings();
-                    let new_settings = AlarmSettings {
-                        alarm_hour: hour,
-                        alarm_minute: current_settings.alarm_minute,
-                        alarm_is_on: current_settings.alarm_is_on,
-                        max_snoozes: current_settings.max_snoozes,
-                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
-                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
-                    };
-                    if let Err(e) = save_settings(&new_settings) {
-                        eprintln!("Failed to save hour setting: {}", e);
-                    }
-
-                    // UIに設定変更を通知
-                    if let Some(ref handle) = self.app_handle {
-                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
-                            eprintln!("Failed to emit alarm settings changed event: {}", e);
-                        }
+                    // 設定を保存・通知
+                    if let Err(e) = self.update_and_notify_settings(|settings| {
+                        settings.alarm_hour = hour;
+                    }) {
+                        eprintln!("Failed to update hour setting: {}", e);
                     }
 
                     drop(state);
@@ -154,25 +162,11 @@ impl OscServer {
                         });
                     }
 
-                    // 設定を保存
-                    let current_settings = load_settings();
-                    let new_settings = AlarmSettings {
-                        alarm_hour: current_settings.alarm_hour,
-                        alarm_minute: minute,
-                        alarm_is_on: current_settings.alarm_is_on,
-                        max_snoozes: current_settings.max_snoozes,
-                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
-                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
-                    };
-                    if let Err(e) = save_settings(&new_settings) {
-                        eprintln!("Failed to save minute setting: {}", e);
-                    }
-
-                    // UIに設定変更を通知
-                    if let Some(ref handle) = self.app_handle {
-                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
-                            eprintln!("Failed to emit alarm settings changed event: {}", e);
-                        }
+                    // 設定を保存・通知
+                    if let Err(e) = self.update_and_notify_settings(|settings| {
+                        settings.alarm_minute = minute;
+                    }) {
+                        eprintln!("Failed to update minute setting: {}", e);
                     }
 
                     drop(state);
@@ -187,25 +181,11 @@ impl OscServer {
                     state.alarm_is_on = *is_on;
                     println!("  AlarmIsOn updated to: {}", is_on);
 
-                    // 設定を保存
-                    let current_settings = load_settings();
-                    let new_settings = AlarmSettings {
-                        alarm_hour: current_settings.alarm_hour,
-                        alarm_minute: current_settings.alarm_minute,
-                        alarm_is_on: *is_on,
-                        max_snoozes: current_settings.max_snoozes,
-                        ringing_duration_minutes: current_settings.ringing_duration_minutes,
-                        snooze_duration_minutes: current_settings.snooze_duration_minutes,
-                    };
-                    if let Err(e) = save_settings(&new_settings) {
-                        eprintln!("Failed to save alarm_is_on setting: {}", e);
-                    }
-
-                    // UIに設定変更を通知
-                    if let Some(ref handle) = self.app_handle {
-                        if let Err(e) = handle.emit("alarm-settings-changed", &new_settings) {
-                            eprintln!("Failed to emit alarm settings changed event: {}", e);
-                        }
+                    // 設定を保存・通知
+                    if let Err(e) = self.update_and_notify_settings(|settings| {
+                        settings.alarm_is_on = *is_on;
+                    }) {
+                        eprintln!("Failed to update alarm_is_on setting: {}", e);
                     }
 
                     drop(state);
