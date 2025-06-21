@@ -1,10 +1,10 @@
 {
-  "name": "vrchat-anywhere-alarm",
+  "name": "anywhere-alarm-system",
   "private": true,
-  "version": "0.0.1",
+  "version": "1.0.0",
   "license": "MIT",
   "author": "Akagi",
-  "description": "VRChatどこでもアラーム",
+  "description": "どこでもアラームシステム",
   "type": "module",
   "scripts": {
     "dev": "vite",
