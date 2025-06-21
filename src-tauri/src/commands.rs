@@ -264,14 +264,12 @@ pub async fn save_timer_settings(
 
 // タイマー設定を取得
 #[tauri::command]
-pub fn get_timer_settings(state: tauri::State<AppStateMutex>) -> Result<(u32, u32, u32), String> {
-    let app_state = state
-        .lock()
-        .map_err(|e| format!("Failed to lock state: {}", e))?;
+pub fn get_timer_settings(_state: tauri::State<AppStateMutex>) -> Result<(u32, u32, u32), String> {
+    let settings = load_settings();
     Ok((
-        app_state.max_snoozes,
-        app_state.ringing_duration_minutes,
-        app_state.snooze_duration_minutes,
+        settings.max_snoozes,
+        settings.ringing_duration_minutes,
+        settings.snooze_duration_minutes,
     ))
 }
 
