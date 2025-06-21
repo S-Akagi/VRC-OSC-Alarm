@@ -126,7 +126,7 @@ function App() {
   async function showLicenseInfo() {
     try {
       const { message } = await import("@tauri-apps/plugin-dialog");
-      const licenseText = `VRC OSC Alarm v0.1.0
+      const licenseText = `VRChatどこでもアラーム
 
 このソフトウェアは以下のオープンソースライブラリを使用しています：
 
@@ -247,7 +247,7 @@ VRChat Inc. とは関係ありません。`;
       {/* カスタムタイトルバー */}
       <div className="custom-titlebar" onMouseDown={handleWindowDrag}>
         <div className="titlebar-content">
-          <span className="window-title">VRC OSC Alarm System</span>
+          <span className="window-title">VRChatどこでもアラーム</span>
           <div className="titlebar-buttons">
             <button
               type="button"

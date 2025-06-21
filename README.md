@@ -1,4 +1,4 @@
-# VRC OSC Alarm
+# VRChatどこでもアラーム
 
 VRChat内でアラーム機能を提供するOSCアプリケーション
 
@@ -55,7 +55,7 @@ AlarmIsOn = ON/OFF表示の切り替え
 
 ```mermaid
 graph TB
-    subgraph "VRC OSC Alarm App"
+    subgraph "VRChatどこでもアラーム App"
         UI[UI Layer<br/>React Frontend]
         Core[Core Logic<br/>Rust Backend]
         Timer[Timer Manager]

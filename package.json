@@ -1,10 +1,10 @@
 {
-  "name": "vrc-osc-alarm",
+  "name": "vrchat-anywhere-alarm",
   "private": true,
   "version": "0.1.0",
   "license": "MIT",
   "author": "Akagi",
-  "description": "VRChat OSC Alarm System",
+  "description": "VRChatどこでもアラーム",
   "type": "module",
   "scripts": {
     "dev": "vite",
