@@ -147,9 +147,9 @@ function App() {
 本ソフトウェアはVRChatの非公式ツールです。
 VRChat Inc. とは関係ありません。`;
 
-      await message(licenseText, { 
-        title: "ライセンス情報", 
-        kind: "info" 
+      await message(licenseText, {
+        title: "ライセンス情報",
+        kind: "info",
       });
     } catch (error) {
       console.error("ライセンス情報表示に失敗しました:", error);
@@ -162,7 +162,6 @@ VRChat Inc. とは関係ありません。`;
 
     await getCurrentWindow().startDragging();
   };
-
 
   // ウィンドウを最小化
   const handleMinimize = async (e: React.MouseEvent) => {
