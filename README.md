@@ -17,7 +17,7 @@ VRChat内でアラーム機能を提供するOSCアプリケーション
 
 ## セットアップ
 
-1. [Releases](https://github.com/S-Akagi/VRC-OSC-Alarm/releases)から最新版をダウンロード
+1. [Releases](https://s-akagi0610.booth.pm/)から最新版をダウンロード
 2. VRChatでOSC機能を有効化
 3. アプリケーションを起動
 

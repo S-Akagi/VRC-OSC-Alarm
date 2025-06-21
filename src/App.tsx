@@ -45,7 +45,6 @@ function App() {
   const [maxSnoozes, setMaxSnoozes] = useState(5); // 最大スヌーズ回数
   const [ringingDuration, setRingingDuration] = useState(15); // アラーム時間
   const [snoozeDuration, setSnoozeDuration] = useState(9); // スヌーズ間隔
-  const [updateInfo, setUpdateInfo] = useState<UpdateInfo | null>(null); // アップデート情報
 
   // アプリの状態を取得
   const fetchAppState = async () => {
@@ -96,7 +95,6 @@ function App() {
   async function checkForUpdates() {
     try {
       const update = await invoke<UpdateInfo>("check_for_updates");
-      setUpdateInfo(update);
       if (update.has_update) {
         await showUpdateDialog(update);
       }
@@ -115,7 +113,7 @@ function App() {
       );
 
       if (result) {
-        window.open(update.download_url, "_blank");
+        window.open("https://s-akagi0610.booth.pm/", "_blank");
       }
     } catch (error) {
       console.error("ダイアログ表示に失敗しました:", error);
