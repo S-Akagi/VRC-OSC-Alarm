@@ -19,3 +19,62 @@ AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
 LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
+
+================================================================================
+
+THIRD PARTY NOTICES
+
+This software incorporates components from the following open source projects:
+
+1. Tauri Framework
+   License: MIT OR Apache-2.0
+   Copyright: Tauri Programme within The Commons Conservancy
+   
+2. React
+   License: MIT
+   Copyright: Meta Platforms, Inc. and affiliates
+   
+3. TypeScript
+   License: Apache-2.0
+   Copyright: Microsoft Corporation
+   
+4. Tokio
+   License: MIT
+   Copyright: Tokio Contributors
+   
+5. Serde
+   License: MIT OR Apache-2.0
+   Copyright: Erick Tryzelaar and Serde Contributors
+   
+6. Chrono
+   License: MIT OR Apache-2.0
+   Copyright: Kang Seonghoon and contributors
+   
+7. ROSC
+   License: MIT/Apache-2.0
+   Copyright: Klaus Schreiber
+   
+8. Reqwest
+   License: MIT OR Apache-2.0
+   Copyright: Sean McArthur and contributors
+
+All third-party libraries are used under their respective open source licenses
+which permit commercial use. Full license texts are available at:
+
+- MIT License: https://opensource.org/licenses/MIT
+- Apache License 2.0: https://www.apache.org/licenses/LICENSE-2.0
+
+================================================================================
+
+DISCLAIMER
+
+This software is not affiliated with VRChat Inc.
+VRChat is a trademark of VRChat Inc.
+
+This software is provided "as is" without warranty of any kind, express or
+implied, including but not limited to the warranties of merchantability,
+fitness for a particular purpose and noninfringement. In no event shall the
+authors or copyright holders be liable for any claim, damages or other
+liability, whether in an action of contract, tort or otherwise, arising from,
+out of or in connection with the software or the use or other dealings in the
+software.
