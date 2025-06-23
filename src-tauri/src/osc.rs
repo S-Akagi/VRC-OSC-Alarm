@@ -1,7 +1,10 @@
 use crate::config::{load_settings, save_settings};
 #[cfg(feature = "pro")]
 use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
-use crate::types::{AlarmSettings, AppStateMutex, TimerEvent, TimerManagerMutex};
+use crate::types::{AlarmSettings, AppStateMutex, TimerManagerMutex};
+#[cfg(feature = "pro")]
+use crate::types::TimerEvent;
+#[cfg(feature = "pro")]
 use crate::utils::{hour_to_vrc_float, minute_to_vrc_float, vrc_float_to_hour, vrc_float_to_minute};
 use chrono::{Local, Timelike, Utc};
 use rosc::{OscMessage, OscPacket, OscType};

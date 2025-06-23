@@ -1,17 +1,18 @@
 /*
- * Anywhere Alarm System
- * Copyright (c) 2024 S-Akagi
- * 
- * This software incorporates components from various open source projects.
- * See LICENSE file for complete license information.
- * 
- * This software is provided "as is" without warranty of any kind.
- * VRChat is a trademark of VRChat Inc. This software is not affiliated with VRChat Inc.
- */
+* Anywhere Alarm System
+* Copyright (c) 2024 S-Akagi
+*
+* This software incorporates components from various open source projects.
+* See LICENSE file for complete license information.
+*
+* This software is provided "as is" without warranty of any kind.
+* VRChat is a trademark of VRChat Inc. This software is not affiliated with VRChat Inc.
+*/
 
 use rosc::OscType;
 use std::sync::{Arc, Mutex};
-use systemstat::{Platform, System};
+// 公式ドキュメントのサンプルに沿って、必要な構造体のみをインポートします
+use sysinfo::{System, User};
 use tokio::time::{sleep, Duration};
 
 // モジュール定義
@@ -43,10 +44,8 @@ pub fn run() {
         .manage(initial_state.clone())
         .manage(timer_manager.clone())
         .setup(move |app| {
-            // 状態とタイマー管理のクローンを作成
             let state = initial_state.clone();
             let timer_mgr = timer_manager.clone();
-
             let _handle = app.handle().clone();
 
             // OSCサーバー用の状態クローン
@@ -75,44 +74,22 @@ pub fn run() {
                 let startup_timer_mgr = timer_mgr.clone();
                 // 起動時の設定読み込みと送信を非同期で実行
                 tauri::async_runtime::spawn(async move {
-                    // VRChatへの接続を待つための遅延
                     sleep(Duration::from_secs(2)).await;
 
                     let settings = load_settings();
-                    // VRChat形式に変換
                     let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
                     let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
 
-                    if let Err(e) = send_osc_to_vrchat(
-                        "/avatar/parameters/AlarmSetHour",
-                        vec![OscType::Float(hour_vrc)],
-                        &startup_state,
-                    )
-                    .await
-                    {
+                    if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetHour", vec![OscType::Float(hour_vrc)], &startup_state).await {
                         eprintln!("Failed to send AlarmSetHour on startup: {}", e);
                     }
-                    if let Err(e) = send_osc_to_vrchat(
-                        "/avatar/parameters/AlarmSetMinute",
-                        vec![OscType::Float(minute_vrc)],
-                        &startup_state,
-                    )
-                    .await
-                    {
+                    if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmSetMinute", vec![OscType::Float(minute_vrc)], &startup_state).await {
                         eprintln!("Failed to send AlarmSetMinute on startup: {}", e);
                     }
-                    if let Err(e) = send_osc_to_vrchat(
-                        "/avatar/parameters/AlarmIsOn",
-                        vec![OscType::Bool(settings.alarm_is_on)],
-                        &startup_state,
-                    )
-                    .await
-                    {
+                    if let Err(e) = send_osc_to_vrchat("/avatar/parameters/AlarmIsOn", vec![OscType::Bool(settings.alarm_is_on)], &startup_state).await {
                         eprintln!("Failed to send AlarmIsOn on startup: {}", e);
                     }
 
-
-                    // アプリ状態を初期化
                     {
                         let mut app_state = startup_state.lock().unwrap();
                         app_state.alarm_set_hour = hour_vrc;
@@ -123,27 +100,18 @@ pub fn run() {
                         app_state.ringing_duration_minutes = settings.ringing_duration_minutes;
                         app_state.snooze_duration_minutes = settings.snooze_duration_minutes;
                     }
-
-                    // 次のアラームを計算してタイマーをセット
                     calculate_and_set_next_alarm(startup_state, startup_timer_mgr).await;
                 });
             }
 
             // ハートビート送信用の状態クローン
             let heartbeat_state = state.clone();
-            // VRChatへのハートビート送信を開始
             tauri::async_runtime::spawn(async move {
-                // 起動完了を待つ
                 sleep(Duration::from_secs(5)).await;
-                
-                let mut interval = tokio::time::interval(Duration::from_secs(30)); // 30秒間隔
+                let mut interval = tokio::time::interval(Duration::from_secs(30));
                 loop {
                     interval.tick().await;
-                    
-                    // 現在の設定を取得してハートビートとして送信
                     let settings = load_settings();
-                    
-                    // ハートビートとして設定値をまとめて送信
                     if let Err(e) = osc::send_heartbeat_to_vrchat(&heartbeat_state, &settings).await {
                         eprintln!("Heartbeat failed: {}", e);
                     }
@@ -153,41 +121,52 @@ pub fn run() {
             // PCステータス送信用の状態クローン
             let pc_stats_state = state.clone();
             tauri::async_runtime::spawn(async move {
-                let sys = System::new();
+                // ドキュメントに従い、System と Components を個別に初期化
+                let mut sys = System::new_all();
+
+                println!("=== sysinfo 初期化 ===");
+                // CPU使用率の初回計算のために、少し待ってから更新
+                sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
+                sys.refresh_cpu_usage();
+
                 loop {
-                    sleep(Duration::from_secs(1)).await;
+                    // ドキュメントに従い、各種情報をリフレッシュ
+                    sys.refresh_cpu_usage();
+                    sys.refresh_memory();
 
-                    // メモリ使用率
-                    if let Ok(mem) = sys.memory() {
-                        let mem_used_p = (mem.total.as_u64() - mem.free.as_u64()) as f32 / mem.total.as_u64() as f32;
-                        dbg!(mem_used_p);
-                        let _ = send_osc_to_vrchat(
-                            "/avatar/parameters/AAS_MemUsage",
-                            vec![OscType::Float(mem_used_p)],
-                            &pc_stats_state,
-                        ).await;
+                    // CPU使用率をOSCで送信
+                    // cpus() は &[Cpu] を返す。最初のCPUの情報をグローバル使用率として利用
+                    let cpu_usage = sys.cpus().first().map(|cpu| cpu.cpu_usage()).unwrap_or(0.0);
+                    dbg!(cpu_usage);
+                    let _ = send_osc_to_vrchat(
+                        "/avatar/parameters/AAS_CpuUsage",
+                        vec![OscType::Float(cpu_usage / 100.0)], // 0.0-1.0の範囲に変換
+                        &pc_stats_state,
+                    ).await;
+
+                    // メモリ使用率をOSCで送信 
+                    let total_memory = sys.total_memory() / 1024 / 1024 / 1024;
+                    let used_memory = sys.used_memory() / 1024 / 1024 / 1024;
+
+                let memory_usage = used_memory as f32 / total_memory as f32;
+                dbg!(memory_usage * 100.0);
+
+                    if total_memory > 0 {
+                        let mem_used_p = used_memory as f32 / total_memory as f32;
+                        let _ = send_osc_to_vrchat("/avatar/parameters/AAS_MemUsage", vec![OscType::Float(mem_used_p)], &pc_stats_state).await;
                     }
 
-                    // CPU温度 (対応プラットフォームのみ)
-                    if let Ok(temp) = sys.cpu_temp() {
-                        dbg!(temp);
-                        let _ = send_osc_to_vrchat(
-                            "/avatar/parameters/AAS_CpuTemp",
-                            vec![OscType::Float(temp)],
-                            &pc_stats_state,
-                        ).await;
-                    }
+                    // sysinfoが推奨する最小間隔で待機
+                    sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
                 }
             });
 
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
-            // --- 無料版のコマンド ---
             get_current_state,
             get_current_version,
             check_for_updates,
-            // --- Pro版のコマンド ---
             #[cfg(feature = "pro")]
             send_osc,
             #[cfg(feature = "pro")]

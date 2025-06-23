@@ -13,8 +13,8 @@
 		"windows": [
 			{
 				"title": "どこでもアラームシステム",
-				"width": 220,
-				"height": 80,
+				"width": 280,
+				"height": 293,
 				"decorations": false,
 				"resizable": false,
 				"alwaysOnTop": true,
