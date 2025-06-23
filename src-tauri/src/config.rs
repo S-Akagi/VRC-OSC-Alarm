@@ -5,7 +5,7 @@ use std::path::PathBuf;
 // 設定ファイル管理
 pub fn get_config_path() -> PathBuf {
     let mut path = dirs::config_dir().unwrap_or_else(|| PathBuf::from("."));
-    path.push("vrchat-anywhere-alarm");
+    path.push("anywhere-alarm-system");
     path.push("settings.json");
     path
 }
