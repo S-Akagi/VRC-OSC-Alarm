@@ -1,7 +1,7 @@
 [package]
 name = "anywhere-alarm-system"
-version = "1.0.0"
-description = "A Tauri App"
+version = "2.0.0"
+description = "AAS Gadget - VRChat OSC Utility"
 authors = ["S-Akagi"]
 edition = "2021"
 
@@ -27,3 +27,8 @@ tokio = { version = "1", features = ["full"] }
 chrono = { version = "0.4", features = ["serde"] }
 dirs = "5.0"
 reqwest = { version = "0.12", features = ["json"] }
+systemstat = "0.2.3"
+
+[features]
+default = []
+pro = []

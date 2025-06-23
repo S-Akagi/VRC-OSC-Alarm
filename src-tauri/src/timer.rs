@@ -1,3 +1,5 @@
+#![cfg(feature = "pro")]
+
 use crate::osc::send_osc_to_vrchat;
 use crate::types::{AppStateMutex, TimerEvent, TimerManagerMutex};
 use crate::utils::{vrc_float_to_hour, vrc_float_to_minute};
