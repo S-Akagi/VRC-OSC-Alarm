@@ -11,6 +11,7 @@
 
 use rosc::OscType;
 use std::sync::{Arc, Mutex};
+use systemstat::{Platform, System};
 use tokio::time::{sleep, Duration};
 
 // モジュール定義
@@ -145,6 +146,36 @@ pub fn run() {
                     // ハートビートとして設定値をまとめて送信
                     if let Err(e) = osc::send_heartbeat_to_vrchat(&heartbeat_state, &settings).await {
                         eprintln!("Heartbeat failed: {}", e);
+                    }
+                }
+            });
+
+            // PCステータス送信用の状態クローン
+            let pc_stats_state = state.clone();
+            tauri::async_runtime::spawn(async move {
+                let sys = System::new();
+                loop {
+                    sleep(Duration::from_secs(1)).await;
+
+                    // メモリ使用率
+                    if let Ok(mem) = sys.memory() {
+                        let mem_used_p = (mem.total.as_u64() - mem.free.as_u64()) as f32 / mem.total.as_u64() as f32;
+                        dbg!(mem_used_p);
+                        let _ = send_osc_to_vrchat(
+                            "/avatar/parameters/AAS_MemUsage",
+                            vec![OscType::Float(mem_used_p)],
+                            &pc_stats_state,
+                        ).await;
+                    }
+
+                    // CPU温度 (対応プラットフォームのみ)
+                    if let Ok(temp) = sys.cpu_temp() {
+                        dbg!(temp);
+                        let _ = send_osc_to_vrchat(
+                            "/avatar/parameters/AAS_CpuTemp",
+                            vec![OscType::Float(temp)],
+                            &pc_stats_state,
+                        ).await;
                     }
                 }
             });

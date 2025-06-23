@@ -3,7 +3,7 @@ use crate::config::{load_settings, save_settings};
 use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
 use crate::types::{AlarmSettings, AppStateMutex, TimerEvent, TimerManagerMutex};
 use crate::utils::{hour_to_vrc_float, minute_to_vrc_float, vrc_float_to_hour, vrc_float_to_minute};
-use chrono::Utc;
+use chrono::{Local, Timelike, Utc};
 use rosc::{OscMessage, OscPacket, OscType};
 use std::net::SocketAddr;
 use tauri::Emitter;
@@ -235,10 +235,8 @@ impl OscServer {
 // ハートビート用のバンドル送信
 pub async fn send_heartbeat_to_vrchat(
     state: &AppStateMutex,
-    settings: &crate::types::AlarmSettings,
+    _settings: &crate::types::AlarmSettings, // settingsは不要になるのでアンダースコア
 ) -> Result<(), String> {
-    use crate::utils::{hour_to_vrc_float, minute_to_vrc_float};
-    
     let target_ip = "127.0.0.1";
     let target_port = 9000;
 
@@ -250,22 +248,19 @@ pub async fn send_heartbeat_to_vrchat(
         .await
         .map_err(|e| format!("Failed to bind client socket: {}", e))?;
 
-    // 複数のOSCメッセージをバンドルとして作成
-    let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
-    let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
-    
+    let now = Local::now();
     let messages = vec![
         OscMessage {
-            addr: "/avatar/parameters/AlarmSetHour".to_string(),
-            args: vec![OscType::Float(hour_vrc)],
+            addr: "/avatar/parameters/AAS_Hour".to_string(),
+            args: vec![OscType::Int(now.hour() as i32)],
         },
         OscMessage {
-            addr: "/avatar/parameters/AlarmSetMinute".to_string(),
-            args: vec![OscType::Float(minute_vrc)],
+            addr: "/avatar/parameters/AAS_Minute".to_string(),
+            args: vec![OscType::Int(now.minute() as i32)],
         },
         OscMessage {
-            addr: "/avatar/parameters/AlarmIsOn".to_string(),
-            args: vec![OscType::Bool(settings.alarm_is_on)],
+            addr: "/avatar/parameters/AAS_Second".to_string(),
+            args: vec![OscType::Int(now.second() as i32)],
         },
     ];
 
