@@ -1,5 +1,5 @@
 /*
- * VRChat Anywhere Alarm
+ * Anywhere Alarm System
  * Copyright (c) 2024 S-Akagi
  * 
  * This software incorporates components from various open source projects.

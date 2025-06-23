@@ -124,7 +124,7 @@ function App() {
   async function showLicenseInfo() {
     try {
       const { message } = await import("@tauri-apps/plugin-dialog");
-      const licenseText = `VRChatどこでもアラーム
+      const licenseText = `どこでもアラームシステム
 
 このソフトウェアは以下のオープンソースライブラリを使用しています：
 
@@ -244,7 +244,7 @@ VRChat Inc. とは関係ありません。`;
       {/* カスタムタイトルバー */}
       <div className="custom-titlebar" onMouseDown={handleWindowDrag}>
         <div className="titlebar-content">
-          <span className="window-title">VRChatどこでもアラーム</span>
+          <span className="window-title">どこでもアラームシステム</span>
           <div className="titlebar-buttons">
             <button
               type="button"
