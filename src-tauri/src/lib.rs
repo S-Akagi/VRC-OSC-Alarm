@@ -17,6 +17,7 @@ use tokio::time::{sleep, Duration};
 mod commands;
 mod config;
 mod osc;
+#[cfg(feature = "pro")]
 mod timer;
 mod types;
 mod utils;
@@ -25,6 +26,7 @@ mod utils;
 use commands::*;
 use config::load_settings;
 use osc::{send_osc_to_vrchat, OscServer};
+#[cfg(feature = "pro")]
 use timer::calculate_and_set_next_alarm;
 use types::{AppState, TimerManager};
 use utils::{hour_to_vrc_float, minute_to_vrc_float};
@@ -65,63 +67,66 @@ pub fn run() {
                 }
             });
 
-            // 起動時処理用の状態クローン
-            let startup_state = state.clone();
-            let startup_timer_mgr = timer_mgr.clone();
-            // 起動時の設定読み込みと送信を非同期で実行
-            tauri::async_runtime::spawn(async move {
-                // VRChatへの接続を待つための遅延
-                sleep(Duration::from_secs(2)).await;
+            #[cfg(feature = "pro")]
+            {
+                // 起動時処理用の状態クローン
+                let startup_state = state.clone();
+                let startup_timer_mgr = timer_mgr.clone();
+                // 起動時の設定読み込みと送信を非同期で実行
+                tauri::async_runtime::spawn(async move {
+                    // VRChatへの接続を待つための遅延
+                    sleep(Duration::from_secs(2)).await;
 
-                let settings = load_settings();
-                // VRChat形式に変換
-                let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
-                let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
+                    let settings = load_settings();
+                    // VRChat形式に変換
+                    let hour_vrc = hour_to_vrc_float(settings.alarm_hour);
+                    let minute_vrc = minute_to_vrc_float(settings.alarm_minute);
 
-                if let Err(e) = send_osc_to_vrchat(
-                    "/avatar/parameters/AlarmSetHour",
-                    vec![OscType::Float(hour_vrc)],
-                    &startup_state,
-                )
-                .await
-                {
-                    eprintln!("Failed to send AlarmSetHour on startup: {}", e);
-                }
-                if let Err(e) = send_osc_to_vrchat(
-                    "/avatar/parameters/AlarmSetMinute",
-                    vec![OscType::Float(minute_vrc)],
-                    &startup_state,
-                )
-                .await
-                {
-                    eprintln!("Failed to send AlarmSetMinute on startup: {}", e);
-                }
-                if let Err(e) = send_osc_to_vrchat(
-                    "/avatar/parameters/AlarmIsOn",
-                    vec![OscType::Bool(settings.alarm_is_on)],
-                    &startup_state,
-                )
-                .await
-                {
-                    eprintln!("Failed to send AlarmIsOn on startup: {}", e);
-                }
+                    if let Err(e) = send_osc_to_vrchat(
+                        "/avatar/parameters/AlarmSetHour",
+                        vec![OscType::Float(hour_vrc)],
+                        &startup_state,
+                    )
+                    .await
+                    {
+                        eprintln!("Failed to send AlarmSetHour on startup: {}", e);
+                    }
+                    if let Err(e) = send_osc_to_vrchat(
+                        "/avatar/parameters/AlarmSetMinute",
+                        vec![OscType::Float(minute_vrc)],
+                        &startup_state,
+                    )
+                    .await
+                    {
+                        eprintln!("Failed to send AlarmSetMinute on startup: {}", e);
+                    }
+                    if let Err(e) = send_osc_to_vrchat(
+                        "/avatar/parameters/AlarmIsOn",
+                        vec![OscType::Bool(settings.alarm_is_on)],
+                        &startup_state,
+                    )
+                    .await
+                    {
+                        eprintln!("Failed to send AlarmIsOn on startup: {}", e);
+                    }
 
 
-                // アプリ状態を初期化
-                {
-                    let mut app_state = startup_state.lock().unwrap();
-                    app_state.alarm_set_hour = hour_vrc;
-                    app_state.alarm_set_minute = minute_vrc;
-                    app_state.alarm_is_on = settings.alarm_is_on;
-                    app_state.snooze_count = 0;
-                    app_state.max_snoozes = settings.max_snoozes;
-                    app_state.ringing_duration_minutes = settings.ringing_duration_minutes;
-                    app_state.snooze_duration_minutes = settings.snooze_duration_minutes;
-                }
+                    // アプリ状態を初期化
+                    {
+                        let mut app_state = startup_state.lock().unwrap();
+                        app_state.alarm_set_hour = hour_vrc;
+                        app_state.alarm_set_minute = minute_vrc;
+                        app_state.alarm_is_on = settings.alarm_is_on;
+                        app_state.snooze_count = 0;
+                        app_state.max_snoozes = settings.max_snoozes;
+                        app_state.ringing_duration_minutes = settings.ringing_duration_minutes;
+                        app_state.snooze_duration_minutes = settings.snooze_duration_minutes;
+                    }
 
-                // 次のアラームを計算してタイマーをセット
-                calculate_and_set_next_alarm(startup_state, startup_timer_mgr).await;
-            });
+                    // 次のアラームを計算してタイマーをセット
+                    calculate_and_set_next_alarm(startup_state, startup_timer_mgr).await;
+                });
+            }
 
             // ハートビート送信用の状態クローン
             let heartbeat_state = state.clone();
@@ -147,21 +152,35 @@ pub fn run() {
             Ok(())
         })
         .invoke_handler(tauri::generate_handler![
+            // --- 無料版のコマンド ---
             get_current_state,
-            send_osc,
-            send_alarm_should_fire,
-            send_alarm_set_hour,
-            send_alarm_set_minute,
-            send_alarm_is_on,
-            send_snooze_pressed,
-            send_stop_pressed,
-            load_and_send_settings,
-            save_alarm_settings,
-            get_alarm_settings,
-            save_timer_settings,
-            get_timer_settings,
             get_current_version,
-            check_for_updates
+            check_for_updates,
+            // --- Pro版のコマンド ---
+            #[cfg(feature = "pro")]
+            send_osc,
+            #[cfg(feature = "pro")]
+            send_alarm_should_fire,
+            #[cfg(feature = "pro")]
+            send_alarm_set_hour,
+            #[cfg(feature = "pro")]
+            send_alarm_set_minute,
+            #[cfg(feature = "pro")]
+            send_alarm_is_on,
+            #[cfg(feature = "pro")]
+            send_snooze_pressed,
+            #[cfg(feature = "pro")]
+            send_stop_pressed,
+            #[cfg(feature = "pro")]
+            load_and_send_settings,
+            #[cfg(feature = "pro")]
+            save_alarm_settings,
+            #[cfg(feature = "pro")]
+            get_alarm_settings,
+            #[cfg(feature = "pro")]
+            save_timer_settings,
+            #[cfg(feature = "pro")]
+            get_timer_settings
         ])
         .run(tauri::generate_context!())
         .expect("error while running tauri application");
