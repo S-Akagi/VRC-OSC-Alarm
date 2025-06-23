@@ -1,4 +1,5 @@
 use crate::config::{load_settings, save_settings};
+#[cfg(feature = "pro")]
 use crate::timer::{calculate_and_set_next_alarm, handle_timer_event};
 use crate::types::{AlarmSettings, AppStateMutex, TimerEvent, TimerManagerMutex};
 use crate::utils::{hour_to_vrc_float, minute_to_vrc_float, vrc_float_to_hour, vrc_float_to_minute};
@@ -99,6 +100,7 @@ impl OscServer {
 
         // OSCメッセージのアドレスに応じて処理
         match msg.addr.as_str() {
+            #[cfg(feature = "pro")]
             "/avatar/parameters/AlarmSetHour" => {
                 // アラーム時間を設定
                 if let Some(OscType::Float(hour_float)) = msg.args.first() {
@@ -132,7 +134,8 @@ impl OscServer {
                     let timer_mgr_clone = self.timer_manager.clone();
                     tokio::spawn(calculate_and_set_next_alarm(state_clone, timer_mgr_clone));
                 }
-            }
+            },
+            #[cfg(feature = "pro")]
             "/avatar/parameters/AlarmSetMinute" => {
                 // アラーム分を設定
                 if let Some(OscType::Float(minute_float)) = msg.args.first() {
@@ -166,7 +169,8 @@ impl OscServer {
                     let timer_mgr_clone = self.timer_manager.clone();
                     tokio::spawn(calculate_and_set_next_alarm(state_clone, timer_mgr_clone));
                 }
-            }
+            },
+            #[cfg(feature = "pro")]
             "/avatar/parameters/AlarmIsOn" => {
                 // アラームがオンかどうか
                 if let Some(OscType::Bool(is_on)) = msg.args.first() {
@@ -184,7 +188,8 @@ impl OscServer {
                     let timer_mgr_clone = self.timer_manager.clone();
                     tokio::spawn(calculate_and_set_next_alarm(state_clone, timer_mgr_clone));
                 }
-            }
+            },
+            #[cfg(feature = "pro")]
             "/avatar/parameters/SnoozePressed" => {
                 // スヌーズボタンが押されたかどうか
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
@@ -203,7 +208,8 @@ impl OscServer {
                         state.snooze_pressed = *pressed;
                     }
                 }
-            }
+            },
+            #[cfg(feature = "pro")]
             "/avatar/parameters/StopPressed" => {
                 // ストップボタンが押されたかどうか
                 if let Some(OscType::Bool(pressed)) = msg.args.first() {
@@ -218,7 +224,7 @@ impl OscServer {
                         state.stop_pressed = *pressed;
                     }
                 }
-            }
+            },
             _ => {
                 // Unknown message - ignore silently
             }
@@ -332,6 +338,7 @@ pub async fn send_osc_to_vrchat(
 }
 
 // タイマーイベントを処理
+#[cfg(feature = "pro")]
 fn handle_timer_event_sync(
     state: AppStateMutex,
     timer_manager: TimerManagerMutex,
