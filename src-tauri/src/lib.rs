@@ -121,42 +121,48 @@ pub fn run() {
             // PCステータス送信用の状態クローン
             let pc_stats_state = state.clone();
             tauri::async_runtime::spawn(async move {
-                // ドキュメントに従い、System と Components を個別に初期化
+                // システム情報取得の初期化
                 let mut sys = System::new_all();
 
                 println!("=== sysinfo 初期化 ===");
-                // CPU使用率の初回計算のために、少し待ってから更新
+                // CPU使用率の初回計算のために待機
                 sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
                 sys.refresh_cpu_usage();
 
                 loop {
-                    // ドキュメントに従い、各種情報をリフレッシュ
+                    // システム情報を更新
                     sys.refresh_cpu_usage();
                     sys.refresh_memory();
 
-                    // CPU使用率をOSCで送信
-                    // cpus() は &[Cpu] を返す。最初のCPUの情報をグローバル使用率として利用
-                    let cpu_usage = sys.cpus().first().map(|cpu| cpu.cpu_usage()).unwrap_or(0.0);
-                    dbg!(cpu_usage);
-                    let _ = send_osc_to_vrchat(
+                    // CPU使用率の取得と送信
+                    let cpu_usage_raw = sys.cpus().first().map(|cpu| cpu.cpu_usage()).unwrap_or(0.0);
+                    let cpu_usage_normalized = cpu_usage_raw / 100.0; // 0.0-1.0の範囲に変換
+
+                    if let Err(e) = send_osc_to_vrchat(
                         "/avatar/parameters/AAS_CpuUsage",
-                        vec![OscType::Float(cpu_usage / 100.0)], // 0.0-1.0の範囲に変換
+                        vec![OscType::Float(cpu_usage_normalized)],
                         &pc_stats_state,
-                    ).await;
-
-                    // メモリ使用率をOSCで送信 
-                    let total_memory = sys.total_memory() / 1024 / 1024 / 1024;
-                    let used_memory = sys.used_memory() / 1024 / 1024 / 1024;
-
-                let memory_usage = used_memory as f32 / total_memory as f32;
-                dbg!(memory_usage * 100.0);
-
-                    if total_memory > 0 {
-                        let mem_used_p = used_memory as f32 / total_memory as f32;
-                        let _ = send_osc_to_vrchat("/avatar/parameters/AAS_MemUsage", vec![OscType::Float(mem_used_p)], &pc_stats_state).await;
+                    ).await {
+                        eprintln!("CPU使用率OSC送信エラー: {}", e);
                     }
 
-                    // sysinfoが推奨する最小間隔で待機
+                    // メモリ使用率の取得と送信
+                    let total_memory_gb = sys.total_memory() / (1024 * 1024 * 1024);
+                    let used_memory_gb = sys.used_memory() / (1024 * 1024 * 1024);
+
+                    if total_memory_gb > 0 {
+                        let memory_usage_ratio = used_memory_gb as f32 / total_memory_gb as f32;
+                        
+                        if let Err(e) = send_osc_to_vrchat(
+                            "/avatar/parameters/AAS_MemUsage", 
+                            vec![OscType::Float(memory_usage_ratio)], 
+                            &pc_stats_state
+                        ).await {
+                            eprintln!("メモリ使用率OSC送信エラー: {}", e);
+                        }
+                    }
+
+                    // 推奨間隔で待機
                     sleep(sysinfo::MINIMUM_CPU_UPDATE_INTERVAL).await;
                 }
             });
