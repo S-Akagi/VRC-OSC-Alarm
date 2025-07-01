@@ -3,6 +3,9 @@ use serde::{Deserialize, Serialize};
 use std::sync::{Arc, Mutex};
 use tokio::task::JoinHandle;
 
+#[cfg(feature = "pro")]
+use crate::spotify::{SpotifyManager, CurrentTrack};
+
 /// アプリケーションの状態を管理する構造体
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct AppState {
@@ -18,6 +21,11 @@ pub struct AppState {
     pub max_snoozes: u32, // 最大スヌーズ回数
     pub ringing_duration_minutes: u32, // アラーム時間
     pub snooze_duration_minutes: u32, // スヌーズ間隔
+    #[cfg(feature = "pro")]
+    #[serde(skip)]
+    pub spotify_manager: Option<Arc<SpotifyManager>>,
+    #[cfg(feature = "pro")]
+    pub current_track: Option<CurrentTrack>,
 }
 
 // デフォルト値を設定
@@ -36,6 +44,10 @@ impl Default for AppState {
             max_snoozes: 5,
             ringing_duration_minutes: 15,
             snooze_duration_minutes: 9,
+            #[cfg(feature = "pro")]
+            spotify_manager: None,
+            #[cfg(feature = "pro")]
+            current_track: None,
         }
     }
 }

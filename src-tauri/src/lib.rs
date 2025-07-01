@@ -20,6 +20,8 @@ mod commands;
 mod config;
 mod osc;
 #[cfg(feature = "pro")]
+mod spotify;
+#[cfg(feature = "pro")]
 mod timer;
 mod types;
 mod utils;
