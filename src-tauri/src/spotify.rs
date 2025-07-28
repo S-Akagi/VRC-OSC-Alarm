@@ -63,6 +63,7 @@ struct AlbumImage {
     width: u32,
 }
 
+#[derive(Debug)]
 pub struct SpotifyManager {
     client: Client,
     client_id: String,
